@@ -1,6 +1,6 @@
 ﻿import { createFillCache, fillLayout } from "./fillLayout";
 import { indexWordScores, isValidAnswerSpelling, type DictionaryEntry } from "./dictionary";
-import { answerLetters, fitsBreaks, wordCells, type GridLayout } from "./layout";
+import { answerLetters, entryMatchesWordCue, fitsBreaks, wordCells, type GridLayout } from "./layout";
 import { nextSuggestionIndex } from "./suggestionOrder";
 
 self.onmessage = async (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; requiredWords?: string[]; knownSolutions?: Record<string, DictionaryEntry>[] }>) => {
@@ -12,20 +12,21 @@ self.onmessage = async (event: MessageEvent<{ layout: GridLayout; entries: Dicti
     if (answers[word.id]) known[i].add(answers[word.id].word);
   });
   knownSolutions.forEach(remember);
-  const uniqueEntries = [...new Map(entries.filter(entry => isValidAnswerSpelling(entry.word)).map(entry => [entry.word, entry])).values()];
+  const validEntries = entries.filter(entry => isValidAnswerSpelling(entry.word));
   const slots = layout.words.map(word => {
     const cells = wordCells(word);
-    const candidates = uniqueEntries.filter(entry => answerLetters(entry.word).length === word.length && fitsBreaks(word, entry.word)
-      && cells.every((cell, i) => !letters[`${cell.row},${cell.col}`] || letters[`${cell.row},${cell.col}`] === answerLetters(entry.word)[i]))
+    const complete = cells.every(cell => Boolean(letters[`${cell.row},${cell.col}`]));
+    const candidates = complete ? [] : [...new Map(validEntries.filter(entry => entryMatchesWordCue(layout, word, entry) && answerLetters(entry.word).length === word.length && fitsBreaks(word, entry.word)
+      && cells.every((cell, i) => !letters[`${cell.row},${cell.col}`] || letters[`${cell.row},${cell.col}`] === answerLetters(entry.word)[i])).map(entry => [entry.word, entry])).values()]
       .sort((a, b) => (scores.get(b.word) ?? 0) - (scores.get(a.word) ?? 0) || a.word.localeCompare(b.word, "da"));
-    return { cells, candidates, cursor: 0, deferred: [] as DictionaryEntry[], budget: 3000, firstLetterFixed: Boolean(letters[`${cells[0].row},${cells[0].col}`]) };
+    return { cells, complete, candidates, cursor: 0, deferred: [] as DictionaryEntry[], budget: 3000, firstLetterFixed: Boolean(letters[`${cells[0].row},${cells[0].col}`]) };
   });
   if (!slots.length) { self.postMessage({ type: "done", reason: "invalid" }); return; }
   let rotation = 0;
   let turn = 0;
   const lastVisited = slots.map(() => -1);
   while (true) {
-    const available = slots.map((slot, i) => ({ slot, i })).filter(({ slot }) => slot.cursor < slot.candidates.length || slot.deferred.length > 0);
+    const available = slots.map((slot, i) => ({ slot, i })).filter(({ slot }) => !slot.complete && (slot.cursor < slot.candidates.length || slot.deferred.length > 0));
     if (!available.length) { self.postMessage({ type: "done", reason: "complete" }); return; }
     // Reserve every fourth check for round-robin progress so difficult slots
     // receive priority without preventing the rest of the grid from advancing.
@@ -58,7 +59,7 @@ self.onmessage = async (event: MessageEvent<{ layout: GridLayout; entries: Dicti
       if (result.status === "limit") slot.deferred.push(entry);
       if (result.status === "solved") { remember(result.answers); self.postMessage({ type: "solution", answers: result.answers }); }
     }
-    if (slots.every(item => item.cursor >= item.candidates.length && item.deferred.length === 0)) {
+    if (slots.every(item => item.complete || (item.cursor >= item.candidates.length && item.deferred.length === 0))) {
       self.postMessage({ type: "done", reason: "complete" });
       return;
     }

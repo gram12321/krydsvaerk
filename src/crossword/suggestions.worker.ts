@@ -1,5 +1,5 @@
 ﻿import { fillLayout } from "./fillLayout";
-import { answerLetters, fitsBreaks, wordCells, type GridLayout } from "./layout";
+import { answerLetters, entryMatchesWordCue, fitsBreaks, wordCells, type GridLayout } from "./layout";
 import { getEntryScore, indexWordScores, isValidAnswerSpelling, type DictionaryEntry } from "./dictionary";
 import { nextSuggestionIndex } from "./suggestionOrder";
 
@@ -8,7 +8,7 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
   const slot = layout.words.find(word => word.id === selected);
   if (!slot) return;
   const cells = wordCells(slot);
-  const matching = entries.filter(entry => answerLetters(entry.word).length === slot.length && isValidAnswerSpelling(entry.word) && fitsBreaks(slot, entry.word) && cells.every((cell, i) => !letters[`${cell.row},${cell.col}`] || letters[`${cell.row},${cell.col}`] === answerLetters(entry.word)[i]));
+  const matching = entries.filter(entry => entryMatchesWordCue(layout, slot, entry) && answerLetters(entry.word).length === slot.length && isValidAnswerSpelling(entry.word) && fitsBreaks(slot, entry.word) && cells.every((cell, i) => !letters[`${cell.row},${cell.col}`] || letters[`${cell.row},${cell.col}`] === answerLetters(entry.word)[i]));
   const scores = indexWordScores(entries);
   const knownByWord = new Map<string, Record<string, DictionaryEntry>[]>();
   for (const answers of knownSolutions) {
@@ -18,12 +18,14 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
   const candidates = [...new Map([...matching].reverse().map(entry => [entry.word, entry])).values()]
     .sort((a, b) => Number(knownByWord.has(b.word)) - Number(knownByWord.has(a.word)) || (scores.get(b.word) ?? 0) - (scores.get(a.word) ?? 0) || a.word.localeCompare(b.word, "da"));
   const rejected = new Set(unsatisfiableCandidates);
+  const solverWords = new Set(solverEntries.map(entry => entry.word));
   const compatible = (answers: Record<string, DictionaryEntry>) => {
     if (!requiredWords.every(word => Object.values(answers).some(entry => entry.word === word))) return false;
     const assignments = new Map<string, string>();
     for (const word of layout.words) {
       const answer = answers[word.id]?.word;
-      if (!answer || answerLetters(answer).length !== word.length || !fitsBreaks(word, answer)) return false;
+      const entry = answers[word.id];
+      if (!answer || (word.id !== selected && !solverWords.has(answer)) || answerLetters(answer).length !== word.length || !fitsBreaks(word, answer) || !entryMatchesWordCue(layout, word, entry)) return false;
       wordCells(word).forEach((cell, i) => assignments.set(`${cell.row},${cell.col}`, answerLetters(answer)[i]));
     }
     return Object.entries(letters).every(([cell, letter]) => !letter || assignments.get(cell) === letter);
@@ -39,9 +41,8 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
     const entry = candidates[position];
     const fixed = { ...letters };
     cells.forEach((cell, i) => { fixed[`${cell.row},${cell.col}`] = answerLetters(entry.word)[i]; });
-    // The selected suggestion is available for its own slot even when its
-    // dictionary is suggestion-only; every crossing slot must still be
-    // fillable from the user's autofill-enabled dictionaries.
+    // The selected suggestion is available for its own slot; every crossing
+    // slot must also be fillable from the same enabled dictionaries.
     const witness = knownByWord.get(entry.word)?.find(compatible);
     const result = witness ? { status: "solved" as const, answers: witness } : rejected.has(entry.word) ? { status: "unsatisfiable" as const } : fillLayout(layout, [...solverEntries, entry], 3000, fixed, false, undefined, undefined, requiredWords);
     checked++;

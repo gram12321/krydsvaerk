@@ -1,6 +1,8 @@
+import { PageIntro, PanelHeading, SiteHeader } from "./Presentation";
+import { PanelResizer } from "./PanelResizer";
 import { customEntryKey, parseCustomEntries, type CustomDictionary } from "./crossword/customDictionary";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import { dictionary, type BuiltinDictionarySettings } from "./crossword/dictionary";
 import { BuiltinDictionaryOptions } from "./crossword/BuiltinDictionaryOptions";
 import { generatePuzzle, placementCells } from "./crossword/generator";
@@ -68,7 +70,7 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
 type LibraryItem = { id: string; name: string; puzzle: Puzzle };
 type PlayState = { id: string; puzzle: Puzzle; answers: Answers };
 export function Player({ published, library = [], preview = false, preferPublished = false, dictionaries, onDictionariesChange, builtinDictionarySettings, onBuiltinDictionarySettingsChange, savedPlay, onPlayChange }: { published: Puzzle | null; library?: LibraryItem[]; preview?: boolean; preferPublished?: boolean; dictionaries: CustomDictionary[]; onDictionariesChange: (next: CustomDictionary[]) => void; builtinDictionarySettings: BuiltinDictionarySettings; onBuiltinDictionarySettingsChange: (next: BuiltinDictionarySettings) => void; savedPlay?: { active?: PlayState; games?: Record<string, PlayState> }; onPlayChange: (value: { active: PlayState; games: Record<string, PlayState> }) => void }) {
-  const customEntries = useMemo(() => dictionaries.filter(item => item.useAutofill).flatMap(item => item.entries), [dictionaries]);
+  const customEntries = useMemo(() => dictionaries.filter(item => item.enabled).flatMap(item => item.entries), [dictionaries]);
   const builtinEntries = useMemo(() => dictionary.filter(entry => entry.source !== "custom" && builtinDictionarySettings[entry.source]), [builtinDictionarySettings]);
   const [dictionaryId, setDictionaryId] = useState(dictionaries.find(item => !item.shared)?.id ?? "");
   const selectedDictionary = dictionaries.find(item => item.id === dictionaryId && !item.shared) ?? dictionaries.find(item => !item.shared);
@@ -82,6 +84,8 @@ export function Player({ published, library = [], preview = false, preferPublish
   const [puzzle, setPuzzle] = useState(() => initial?.puzzle ?? published ?? generatePuzzle(11, allEntries));
   const [selection, setSelection] = useState<Selection | null>(() => initialSelection(puzzle));
   const [answers, setAnswers] = useState<Answers>(() => initial?.answers ?? {});
+  const [panelWidth, setPanelWidth] = useState(32);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const boardWrapRef = useRef<HTMLDivElement>(null);
   const [isBoardFullscreen, setIsBoardFullscreen] = useState(false);
   useEffect(() => {
@@ -230,23 +234,17 @@ export function Player({ published, library = [], preview = false, preferPublish
 
   return (
     <div className="player-page"><div className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="#top" aria-label="Krydsværk, til forsiden"><span className="brand-mark"><span>K</span><span>R</span><span>Y</span><span>D</span></span><span>krydsværk<span className="brand-dot">.</span></span></a>
-        <div className="topbar-note"><span className="note-dot" /> EN LILLE PAUSE TIL HOVEDET</div>
-        <span className="topbar-edition">LAVET TIL ORDGLÆDE <span>✳</span></span>
-      </header>
-
-      <main id="top" className={`workspace${preview ? " preview-workspace" : ""}`}>
+      <SiteHeader edition={preview ? "FORHÅNDSVISNING" : "LAVET TIL ORDGLÆDE"} />
+      <main id="top" className="player-main">
+        <PageIntro eyebrow={preview ? "DIT DESIGN" : "DIT EGET KRYDSORD"} title={preview ? <>Se dit <em>krydsord.</em></> : <>Ord, der <em>krydser.</em></>}>{preview ? "Se feltet og ledetrådene, som spilleren vil opleve dem." : "Tag en pause, find ordene, og lad bogstaverne falde på plads."}</PageIntro>
+        <div className={`player-workspace${preview ? " preview-workspace" : ""}`} ref={workspaceRef} style={{ "--choice-share": `${panelWidth}fr`, "--puzzle-share": `${100 - panelWidth}fr` } as CSSProperties}>
         {!preview && <section className="intro-panel">
-          <div className="intro-copy">
-            <div className="eyebrow"><span className="eyebrow-line" /> DIT EGET KRYDSORD</div>
-            <h1>Ord, der<br /><em>krydser.</em></h1>
-            <p className="intro-description">Tag en pause, find ordene, og lad bogstaverne falde på plads.</p>
-          </div>
+          <PanelHeading number="01" label="START" title="Vælg krydsord" />
+          <p className="panel-description">Find et fra designeren, eller prøv et nyt felt.</p>
 
-          {library.length > 0 && <div className="settings-card"><div className="section-label"><span>01</span> FRA DESIGNEREN</div><label htmlFor="published-choice">Vælg krydsord</label><select id="published-choice" value={library.some(item => item.id === puzzleId) ? puzzleId : ""} onChange={event => { const item = library.find(entry => entry.id === event.target.value); if (!item) return; const previous = savedPlay?.games?.[item.id]; setPuzzleId(item.id); setPuzzle(item.puzzle); setAnswers(previous?.answers ?? {}); setSelection(initialSelection(item.puzzle)); setChecked(false); setMessage("Designerens krydsord er klar."); }}><option value="">Vælg krydsord</option>{library.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button className="primary-button" onClick={() => { const item = library.find(entry => entry.id === puzzleId) ?? library[library.length - 1]; const previous = savedPlay?.games?.[item.id]; setPuzzleId(item.id); setPuzzle(item.puzzle); setAnswers(previous?.answers ?? {}); setSelection(initialSelection(item.puzzle)); setChecked(false); setMessage("Designerens krydsord er klar."); }}>Åbn designerens krydsord <Icon name="arrow" /></button></div>}
+          {library.length > 0 && <div className="settings-card"><h3 className="settings-title">Fra designeren</h3><label htmlFor="published-choice">Vælg krydsord</label><select id="published-choice" value={library.some(item => item.id === puzzleId) ? puzzleId : ""} onChange={event => { const item = library.find(entry => entry.id === event.target.value); if (!item) return; const previous = savedPlay?.games?.[item.id]; setPuzzleId(item.id); setPuzzle(item.puzzle); setAnswers(previous?.answers ?? {}); setSelection(initialSelection(item.puzzle)); setChecked(false); setMessage("Designerens krydsord er klar."); }}><option value="">Vælg krydsord</option>{library.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button className="primary-button" onClick={() => { const item = library.find(entry => entry.id === puzzleId) ?? library[library.length - 1]; const previous = savedPlay?.games?.[item.id]; setPuzzleId(item.id); setPuzzle(item.puzzle); setAnswers(previous?.answers ?? {}); setSelection(initialSelection(item.puzzle)); setChecked(false); setMessage("Designerens krydsord er klar."); }}>Åbn designerens krydsord <Icon name="arrow" /></button></div>}
           <div className="settings-card">
-            <div className="section-label"><span>01</span> PRØV ET TILFÆLDIGT KRYDSORD</div>
+            <h3 className="settings-title">Et nyt krydsord</h3>
             <label htmlFor="grid-size">Størrelse på feltet</label>
             <div className="select-wrap"><select id="grid-size" value={size} onChange={(event) => setSize(Number(event.target.value))}><option value={9}>Lille · 9 × 9</option><option value={11}>Mellem · 11 × 11</option><option value={13}>Stor · 13 × 13</option></select><span aria-hidden="true">⌄</span></div>
             <button className="primary-button" onClick={newPuzzle}><Icon name="refresh" /> Nyt krydsord <Icon name="arrow" /></button>
@@ -257,8 +255,9 @@ export function Player({ published, library = [], preview = false, preferPublish
           <div className="side-foot">LAVET MED <span>♥</span> OG GODE ORD</div>
         </section>}
 
+        {!preview && <PanelResizer containerRef={workspaceRef} value={panelWidth} min={28} max={52} onChange={setPanelWidth} label="Juster bredden på spillerpanelerne" valueLabel="til valg af krydsord" />}
         <section className="puzzle-panel" aria-label="Krydsord">{playStorageError && <p role="alert">{playStorageError}</p>}
-          <div className="puzzle-header"><div><div className="section-label"><span>02</span> TID TIL AT TÆNKE</div><h2>Dit krydsord <span>✳</span></h2></div><div className="puzzle-header-actions"><button type="button" className="print-grid-button" onClick={() => window.print()}>Print gitter</button><button type="button" className="fullscreen-grid-button" onClick={() => void toggleBoardFullscreen()} aria-label={isBoardFullscreen ? "Afslut fuld skærm" : "Vis gitter i fuld skærm"} data-tooltip={isBoardFullscreen ? "Afslut fuld skærm" : "Vis gitter i fuld skærm"}><Icon name={isBoardFullscreen ? "collapse" : "expand"} /><span>{isBoardFullscreen ? "Afslut" : "Fuld skærm"}</span></button><div className="puzzle-tag"><span /> KLAR TIL ORD</div></div></div>
+          <PanelHeading number="02" label="FELT" title="Dit krydsord" actions={<div className="puzzle-header-actions"><button type="button" className="print-grid-button" onClick={() => window.print()}>Print gitter</button><button type="button" className="fullscreen-grid-button" onClick={() => void toggleBoardFullscreen()} aria-label={isBoardFullscreen ? "Afslut fuld skærm" : "Vis gitter i fuld skærm"} data-tooltip={isBoardFullscreen ? "Afslut fuld skærm" : "Vis gitter i fuld skærm"}><Icon name={isBoardFullscreen ? "collapse" : "expand"} /><span>{isBoardFullscreen ? "Afslut" : "Fuld skærm"}</span></button></div>} />
           <div className="puzzle-meta"><span>{puzzle.size} × {puzzle.size} FELTER</span><span className="meta-separator" /> <span>{puzzle.placements.length} ORD</span><span className="meta-right">GOD FORNØJELSE!</span></div>
 
           <div ref={boardWrapRef} className="board-wrap" tabIndex={0} aria-label="Rul krydsordsfeltet vandret">{isBoardFullscreen && <button type="button" className="fullscreen-grid-exit" onClick={() => void toggleBoardFullscreen()}><Icon name="collapse" /> Afslut fuld skærm</button>}<div className="board" role="group" aria-label="Krydsordsfelt" style={{ gridTemplateColumns: `repeat(${puzzle.size}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${puzzle.size}, minmax(0, 1fr))` }}>
@@ -266,7 +265,7 @@ export function Player({ published, library = [], preview = false, preferPublish
               const key = keyOf(r, c);
               if (cell.kind === "covered") return null;
               if (cell.kind === "block") return <div key={key} className="cell cell-dark" style={{ gridRow: r + 1, gridColumn: c + 1 }} aria-label="Sort felt" />;
-              if (cell.kind === "arrow") return <div key={key} className="cell cell-separator" style={{ gridRow: r + 1, gridColumn: c + 1 }} aria-label="Ordmellemrum" />;
+              if (cell.kind === "arrow") return <div key={key} className="cell cell-separator" style={{ gridRow: r + 1, gridColumn: c + 1 }} aria-label="Bindestreg" />;
               if (cell.kind === "image") { const src = cell.illustration?.startsWith("data:") ? cell.illustration : cell.illustration?.startsWith("preset:") ? `/illustrations/${cell.illustration.slice(7)}.svg` : undefined; return <div key={key} className="cell cell-image" style={{ gridRow: `${r + 1} / span ${cell.height}`, gridColumn: `${c + 1} / span ${cell.width}` }} aria-label="Billedfelt">{src ? <img src={src} alt="" style={{ objectFit: cell.fit ?? "cover", objectPosition: `${cell.offsetX ?? 50}% ${cell.offsetY ?? 50}%` }} /> : <span aria-hidden="true">✦</span>}{(cell.placementIds ?? []).map(id => { const placement = puzzle.placements[id]; if (!placement.imageMarker) return null; return <button key={id} className={`image-cue-button${selection?.placementId === id ? " clue-active" : ""}`} style={{ left: `clamp(13px, ${placement.imageMarker.left}%, calc(100% - 13px))`, top: `clamp(13px, ${placement.imageMarker.top}%, calc(100% - 13px))` }} onClick={() => selectPlacement(placement)} aria-label={`${placement.direction === "across" ? "Vandret" : "Lodret"} svar, ${placement.length} bogstaver`}>{placement.imageMarker.arrow}</button>; })}</div>; }
               if (cell.kind === "clue") {
                 const display = cluePresentation({ row: r, col: c, width: cell.width, height: cell.height }, cell.placementIds.map(id => puzzle.placements[id]));
@@ -274,7 +273,7 @@ export function Player({ published, library = [], preview = false, preferPublish
                   {display.words.map(placement => {
                     const other = display.words.find(word => word.id !== placement.id);
                     const weight = other ? Math.max(35, Math.min(65, 100 * Math.sqrt(placement.clue.length || 1) / (Math.sqrt(placement.clue.length || 1) + Math.sqrt(other.clue.length || 1)))) : 1;
-                    return <button key={placement.id} style={{ flexGrow: weight }} className={selection?.placementId === placement.id ? "clue-active" : ""} onClick={() => selectPlacement(placement)} aria-label={`${placement.clue}, ${placement.direction === "across" ? "vandret" : "lodret"}, ${placement.length} bogstaver, starter i række ${placement.row + 1}, kolonne ${placement.col + 1}`}><ClueText clue={placement.clue} /></button>;
+                    return <button key={placement.id} style={{ flexGrow: weight }} className={`${selection?.placementId === placement.id ? "clue-active" : ""}${placement.cueKind === "emoji" ? " emoji-clue-choice" : ""}`} onClick={() => selectPlacement(placement)} aria-label={`${placement.cueKind === "emoji" ? `Emoji ${placement.clue}` : placement.clue}, ${placement.direction === "across" ? "vandret" : "lodret"}, ${placement.length} bogstaver, starter i række ${placement.row + 1}, kolonne ${placement.col + 1}`}>{placement.cueKind === "emoji" ? <span aria-hidden="true">{placement.clue}</span> : <ClueText clue={placement.clue} />}</button>;
                   })}
                 </div>;
               }
@@ -291,14 +290,15 @@ export function Player({ published, library = [], preview = false, preferPublish
             }))}
           </div></div><p className="scroll-hint">Skub til siden for at se hele feltet ↔</p>
 
-          <div className="active-clue"><div className="active-clue-icon">{selectedPlacement?.cueKind === "image" ? selectedPlacement.imageMarker?.arrow : selectedPlacement?.direction === "down" ? "↓" : "→"}</div><div><span>{selectedPlacement?.cueKind === "image" ? "BILLEDLEDTRÅD" : "VALGT LEDTRÅD"} · {selectedPlacement?.direction === "down" ? "LODRET" : "VANDRET"}</span><strong>{selectedPlacement?.cueKind === "image" ? "Se pilen på billedet" : selectedPlacement?.clue ?? "Vælg en ledetråd"}</strong></div><span className="clue-length">{selectedPlacement?.length ?? 0} BOGSTAVER</span></div>
+          <div className="active-clue"><div className="active-clue-icon">{selectedPlacement?.cueKind === "image" ? selectedPlacement.imageMarker?.arrow : selectedPlacement?.cueKind === "emoji" ? selectedPlacement.clue : selectedPlacement?.direction === "down" ? "↓" : "→"}</div><div><span>{selectedPlacement?.cueKind === "image" ? "BILLEDLEDTRÅD" : selectedPlacement?.cueKind === "emoji" ? "EMOJI-LEDTRÅD" : "VALGT LEDTRÅD"} · {selectedPlacement?.direction === "down" ? "LODRET" : "VANDRET"}</span><strong>{selectedPlacement?.cueKind === "image" ? "Se pilen på billedet" : selectedPlacement?.clue ?? "Vælg en ledetråd"}</strong></div><span className="clue-length">{selectedPlacement?.length ?? 0} BOGSTAVER</span></div>
           {!preview && <><div className="puzzle-actions"><button onClick={checkAnswers}><Icon name="check" /> Tjek svar</button><button onClick={revealLetter}><Icon name="spark" /> Vis et bogstav</button><button onClick={() => { setAnswers({}); setChecked(false); setMessage("Feltet er ryddet."); }}><Icon name="reset" /> Start forfra</button></div>
           <div className="progress-row"><div><strong>{completed ? "Krydsordet er løst!" : "Din fremgang"}</strong><span>{filled} af {letterCells.length} bogstaver</span></div><span>{percent}%</span></div><div className="progress-track"><div style={{ width: `${percent}%` }} /></div>
           <p className="status-message" role="status">{message || "Tip: Klik på et krydsende bogstav for at skifte retning."}</p>
           </>}
         </section>
+        </div>
+      {!preview && <section className="dictionary-section"><div className="dictionary-heading"><div><PanelHeading number="03" label="ORDBØGER" title="Flere ord at lege med" /><p>{new Set(allEntries.map((entry) => entry.word)).size} ord kan bruges i nye krydsord. Vælg de indbyggede samlinger, og tilføj dine egne. DanNet-data er under CC BY-SA 4.0.</p></div></div><details><summary>Vælg ordbøger og tilføj egne ord <span>＋</span></summary><div className="dictionary-content"><BuiltinDictionaryOptions settings={builtinDictionarySettings} onChange={onBuiltinDictionarySettingsChange} /><label>Ordbog <select value={selectedDictionary?.id ?? ""} onChange={event => setDictionaryId(event.target.value)}>{dictionaries.filter(item => !item.shared).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label htmlFor="dictionary-input">Ledetråd: svar|svar eller ord;ledetråd;ledetråd pr. linje</label><textarea id="dictionary-input" value={dictionaryText} onChange={(event) => setDictionaryText(event.target.value)} placeholder={'Pigenavn: Hanne|Sigrid\nCYKEL;Køretøj med to hjul'} rows={4} /><div className="dictionary-bottom"><button onClick={addEntries}>Gem ord</button><p>Gemt i denne browser · {customEntries.length} {customEntries.length === 1 ? "eget ord" : "egne ord"}</p></div><p role="status">{dictionaryMessage}</p></div></details></section>}
       </main>
-      {!preview && <section className="dictionary-section"><div className="dictionary-heading"><span className="dictionary-icon"><Icon name="book" size={21} /></span><div><h2>Flere ord at lege med</h2><p>{new Set(allEntries.map((entry) => entry.word)).size} ord kan bruges i nye krydsord. Vælg de indbyggede samlinger, og tilføj dine egne. DanNet-data er under CC BY-SA 4.0.</p></div></div><details><summary>Vælg ordbøger og tilføj egne ord <span>＋</span></summary><div className="dictionary-content"><BuiltinDictionaryOptions settings={builtinDictionarySettings} onChange={onBuiltinDictionarySettingsChange} /><label>Ordbog <select value={selectedDictionary?.id ?? ""} onChange={event => setDictionaryId(event.target.value)}>{dictionaries.filter(item => !item.shared).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label htmlFor="dictionary-input">Ledetråd: svar|svar eller ord;ledetråd;ledetråd pr. linje</label><textarea id="dictionary-input" value={dictionaryText} onChange={(event) => setDictionaryText(event.target.value)} placeholder={'Pigenavn: Hanne|Sigrid\nCYKEL;Køretøj med to hjul'} rows={4} /><div className="dictionary-bottom"><button onClick={addEntries}>Gem ord</button><p>Gemt i denne browser · {customEntries.length} {customEntries.length === 1 ? "eget ord" : "egne ord"}</p></div><p role="status">{dictionaryMessage}</p></div></details></section>}
       <footer className="footer"><span>KRYDSVÆRK <span>✳</span> EN PAUSE MED MENING</span><span>GOD FORNØJELSE MED ORDENE</span></footer>
     </div></div>
   );

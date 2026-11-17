@@ -2,6 +2,7 @@ import dannetData from "./data/dannet.json" with { type: "json" };
 import { shortClues } from "./data/shortClues";
 import { starterEntries } from "./data/starter";
 import { bindestrejsEntries } from "./data/bindestrejsord";
+import { emojiEntries as emojiData } from "./data/emojis";
 
 export interface DictionaryEntry {
   word: string;
@@ -11,7 +12,7 @@ export interface DictionaryEntry {
   /** Shared concept for curated, interchangeable clue answers. */
   clueGroupId?: string;
   partOfSpeech?: string;
-  source: "starter" | "shortClues" | "hyphen" | "custom" | "dannet";
+  source: "starter" | "shortClues" | "hyphen" | "custom" | "dannet" | "emoji";
 }
 
 export type BuiltinDictionarySource = Exclude<DictionaryEntry["source"], "custom">;
@@ -21,6 +22,7 @@ export const BUILTIN_DICTIONARY_COLLECTIONS: { source: BuiltinDictionarySource; 
   { source: "shortClues", label: "Korte krydsordsledetråde" },
   { source: "hyphen", label: "Bindestrejsord" },
   { source: "dannet", label: "DanNet" },
+  { source: "emoji", label: "Emojiordbog" },
 ];
 
 export type BuiltinDictionarySettings = Record<BuiltinDictionarySource, boolean>;
@@ -35,9 +37,9 @@ export function parseBuiltinDictionarySettings(saved: unknown): BuiltinDictionar
   ])) as BuiltinDictionarySettings;
 }
 
-/** Crossword words may use spaces or hyphens as answer separators. */
+/** Crossword answers may contain letters and optional hyphens. */
 export function isValidAnswerSpelling(word: string): boolean {
-  return /^[A-ZÆØÅ]+(?:[ -][A-ZÆØÅ]+)*$/.test(word);
+  return /^[A-ZÆØÅ]+(?:-[A-ZÆØÅ]+)*$/.test(word);
 }
 
 export type DictionaryByLength = ReadonlyMap<number, readonly DictionaryEntry[]>;
@@ -45,10 +47,11 @@ export type DictionaryByLength = ReadonlyMap<number, readonly DictionaryEntry[]>
 /** Source scores express word priority, not the quality of an individual clue. */
 export const WORD_SOURCE_SCORES: Readonly<Record<DictionaryEntry["source"], number>> = {
   dannet: 1,
-  starter: 1,
+  starter: 2,
   shortClues: 2,
-  hyphen: 2,
-  custom: 3,
+  hyphen: 4,
+  custom: 5,
+  emoji: 3,
 };
 
 /** Score for one dictionary entry and its clue, rather than the spelling overall. */
@@ -85,22 +88,36 @@ const starterDictionary: DictionaryEntry[] = entries.split("\n").flatMap((line) 
   const clues = hasMetadata ? fields.slice(0, -2) : fields;
   const clueGroupId = hasMetadata ? fields.at(-2) : undefined;
   const partOfSpeech = hasMetadata ? fields.at(-1) : undefined;
-  return clues.map(clue => ({ word, clue, length: word.replace(/[ -]/g, "").length, clueGroupId, partOfSpeech, source: "starter" as const }));
-}).filter(({ word, clue }) => /^[A-ZÆØÅ]+(?:[ -][A-ZÆØÅ]+)*$/.test(word) && Boolean(clue) && clue.length <= 18 && clue.trim().split(/\s+/).length <= 2);
+  return clues.map(clue => ({ word, clue, length: word.replace(/-/g, "").length, clueGroupId, partOfSpeech, source: "starter" as const }));
+}).filter(({ word, clue }) => isValidAnswerSpelling(word) && Boolean(clue) && clue.length <= 18 && clue.trim().split(/\s+/).length <= 2);
 
 const curatedShortDictionary: DictionaryEntry[] = shortClues.split("\n").flatMap((line) => {
   const [word, ...clues] = line.split("|");
-  return clues.map(clue => ({ word, clue, length: word.replace(/[ -]/g, "").length, source: "shortClues" as const }));
-});
+  return clues.map(clue => ({ word, clue, length: word.replace(/-/g, "").length, source: "shortClues" as const }));
+}).filter(({ word }) => isValidAnswerSpelling(word));
 
 const bindestrejsDictionary: DictionaryEntry[] = bindestrejsEntries.split("\n").filter(line => line.trim()).flatMap((line) => {
   const [word, ...clues] = line.trim().split("|");
   return clues.filter(clue => clue.length <= 18 && clue.trim().split(/\s+/).length <= 2)
-    .map(clue => ({ word, clue, length: word.replace(/[ -]/g, "").length, source: "hyphen" as const }));
-}).filter(({ word }) => /^[A-ZÆØÅ]+(?:-[A-ZÆØÅ]+)+$/.test(word));
+    .map(clue => ({ word, clue, length: word.replace(/-/g, "").length, source: "hyphen" as const }));
+}).filter(({ word }) => isValidAnswerSpelling(word) && word.includes("-"));
 
-const dannetDictionary: DictionaryEntry[] = dannetData.map(([word, clue, clueGroupId, partOfSpeech]) => ({
-  word, clue, clueGroupId, partOfSpeech, length: word.replace(/[ -]/g, "").length, source: "dannet",
+const dannetDictionary: DictionaryEntry[] = dannetData.filter(([word]) => isValidAnswerSpelling(word)).map(([word, clue, clueGroupId, partOfSpeech]) => ({
+  word, clue, clueGroupId, partOfSpeech, length: word.replace(/-/g, "").length, source: "dannet",
 }));
 
-export const dictionary: DictionaryEntry[] = [...curatedShortDictionary, ...starterDictionary, ...bindestrejsDictionary, ...dannetDictionary];
+const emojiDictionary: DictionaryEntry[] = emojiData.split("\n").filter(Boolean).map(line => {
+  const [word, clue] = line.split("|");
+  return { word, clue, length: word.length, source: "emoji" };
+});
+
+export const dictionary: DictionaryEntry[] = [...curatedShortDictionary, ...starterDictionary, ...bindestrejsDictionary, ...dannetDictionary, ...emojiDictionary];
+
+/** Count distinct answer spellings, even when a word has several clues. */
+export function countDictionaryWords(entries: readonly Pick<DictionaryEntry, "word">[]): number {
+  return new Set(entries.map(entry => entry.word)).size;
+}
+
+export const BUILTIN_DICTIONARY_WORD_COUNTS = Object.fromEntries(
+  BUILTIN_DICTIONARY_COLLECTIONS.map(({ source }) => [source, countDictionaryWords(dictionary.filter(entry => entry.source === source))]),
+) as Record<BuiltinDictionarySource, number>;

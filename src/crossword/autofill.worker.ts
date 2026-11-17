@@ -1,6 +1,6 @@
 import { createFillCache, fillLayout } from "./fillLayout";
 import { indexWordScores, isValidAnswerSpelling, type DictionaryEntry } from "./dictionary";
-import { answerLetters, fitsBreaks, wordCells, type GridLayout } from "./layout";
+import { answerLetters, entryMatchesWordCue, fitsBreaks, wordCells, type GridLayout } from "./layout";
 
 self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; selected?: string; checkOnly?: boolean; requiredWords?: string[]; knownSolutions?: { answers: Record<string, DictionaryEntry> }[]; unsatisfiableCandidates?: string[] }>) => {
   const { layout, entries, letters, selected, checkOnly, requiredWords = [], knownSolutions = [], unsatisfiableCandidates = [] } = event.data;
@@ -9,35 +9,43 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
     const now = Date.now();
     if (force || now - lastUpdate >= 250) { lastUpdate = now; self.postMessage({ type: "progress", ...data }); }
   };
-  if (!selected) {
-    const mode = checkOnly ? "check" : "grid";
-    let latest: object = { mode, nodes: 0, solutions: 0, bestScore: null };
-    const result = fillLayout(layout, entries, 100000, letters, !checkOnly, progress => { latest = { mode, ...progress }; report(latest); }, undefined, requiredWords);
-    report(latest, true);
-    self.postMessage(checkOnly
-      ? { type: "checked", status: result.status, errors: result.status === "invalid" ? result.errors : undefined, searchStats: latest }
-      : result);
-    return;
-  }
-  const slot = layout.words.find(word => word.id === selected);
-  if (!slot) return;
-  const cells = wordCells(slot);
+  const availableWords = new Set(entries.map(entry => entry.word));
   const compatibleSolutions = knownSolutions.filter(solution => {
     if (!requiredWords.every(word => Object.values(solution.answers).some(entry => entry.word === word))) return false;
     const assignments = new Map<string, string>();
     for (const word of layout.words) {
       const answer = solution.answers[word.id]?.word;
-      if (!answer || answerLetters(answer).length !== word.length || !fitsBreaks(word, answer)) return false;
+      const entry = solution.answers[word.id];
+      if (!answer || !availableWords.has(answer) || answerLetters(answer).length !== word.length || !fitsBreaks(word, answer) || !entryMatchesWordCue(layout, word, entry)) return false;
       wordCells(word).forEach((cell, i) => assignments.set(`${cell.row},${cell.col}`, answerLetters(answer)[i]));
     }
     return Object.entries(letters).every(([cell, letter]) => !letter || assignments.get(cell) === letter);
   });
+  if (!selected) {
+    const mode = checkOnly ? "check" : "grid";
+    let latest: object = { mode, nodes: 0, solutions: 0, bestScore: null };
+    if (checkOnly && compatibleSolutions.length) {
+      self.postMessage({ type: "checked", status: "solved", searchStats: latest });
+      return;
+    }
+    const result = fillLayout(layout, entries, 100000, letters, !checkOnly, progress => { latest = { mode, ...progress }; report(latest); }, undefined, requiredWords);
+    report(latest, true);
+    self.postMessage(checkOnly
+      ? { type: "checked", status: result.status, errors: result.status === "invalid" ? result.errors : undefined, searchStats: latest }
+      : result.status === "limit" && !result.answers && compatibleSolutions.length
+        ? { status: "limit", answers: compatibleSolutions[0].answers }
+        : result);
+    return;
+  }
+  const slot = layout.words.find(word => word.id === selected);
+  if (!slot) return;
+  const cells = wordCells(slot);
   const unsatisfiable = new Set(unsatisfiableCandidates);
   const previouslySolvedWords = new Set(compatibleSolutions
     .map(solution => solution.answers[selected]?.word)
     .filter((word): word is string => !!word));
   const scores = indexWordScores(entries);
-  const candidates = [...new Map(entries.filter(entry => answerLetters(entry.word).length === slot.length && isValidAnswerSpelling(entry.word) && fitsBreaks(slot, entry.word) && cells.every((cell, i) => !letters[`${cell.row},${cell.col}`] || letters[`${cell.row},${cell.col}`] === answerLetters(entry.word)[i])).map(entry => [entry.word, entry])).values()]
+  const candidates = [...new Map(entries.filter(entry => entryMatchesWordCue(layout, slot, entry) && answerLetters(entry.word).length === slot.length && isValidAnswerSpelling(entry.word) && fitsBreaks(slot, entry.word) && cells.every((cell, i) => !letters[`${cell.row},${cell.col}`] || letters[`${cell.row},${cell.col}`] === answerLetters(entry.word)[i])).map(entry => [entry.word, entry])).values()]
     .sort((a, b) => Number(previouslySolvedWords.has(b.word)) - Number(previouslySolvedWords.has(a.word))
       || (scores.get(b.word) ?? 0) - (scores.get(a.word) ?? 0)
       || a.word.localeCompare(b.word, "da"));

@@ -1,10 +1,11 @@
+import type { Direction } from "./generator";
 import { wordCells, type ClueArea, type GridLayout, type GridWord, type Point } from "./layout";
 
-export type LayoutTool = "letter" | "clue" | "wide" | "tall" | "block" | "image-area" | "arrow-across" | "arrow-down";
+export type LayoutTool = "letter" | "clue" | "emoji" | "wide" | "tall" | "block" | "image-area" | "arrow-across" | "arrow-down";
 const key = (row: number, col: number) => `${row},${col}`;
 
 /** Rebuild slots from the visible grid, including incomplete intermediate layouts. */
-export function editLayout(layout: GridLayout, point: Point, tool: LayoutTool, areaSize?: { width: number; height: number }): GridLayout | null {
+export function editLayout(layout: GridLayout, point: Point, tool: LayoutTool, areaSize?: { width: number; height: number }, emojiDirection?: Direction): GridLayout | null {
   const width = areaSize?.width ?? (tool === "wide" ? 2 : 1);
   const height = areaSize?.height ?? (tool === "tall" ? 2 : 1);
   if (!Number.isInteger(point.row) || !Number.isInteger(point.col) || point.row < 0 || point.col < 0 || point.col + width > layout.width || point.row + height > layout.height) return null;
@@ -32,6 +33,7 @@ export function editLayout(layout: GridLayout, point: Point, tool: LayoutTool, a
   for (const block of layout.blocks ?? []) blocks.set(key(block.row, block.col), block);
   for (const k of changed) { blocks.delete(k); arrows.delete(k); }
   if (tool === "clue" || tool === "wide" || tool === "tall") clues.push({ ...point, id: `clue-${point.row}-${point.col}`, width, height });
+  if (tool === "emoji") clues.push({ ...point, id: `clue-${point.row}-${point.col}`, width: 1, height: 1, emojiAny: true, ...(emojiDirection ? { emojiDirection } : {}) });
   if (tool === "image-area") images.push({ ...point, id: `image-${point.row}-${point.col}`, width, height });
   if (tool === "block") blocks.set(key(point.row, point.col), point);
   if (tool === "arrow-across" || tool === "arrow-down") arrows.set(key(point.row, point.col), { ...point, direction: tool === "arrow-across" ? "across" : "down" });

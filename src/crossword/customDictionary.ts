@@ -17,12 +17,12 @@ export function parseCustomEntries(text: string, useBothDirections = false, clue
       })();
     if (!pairs.length) return null;
     for (const [rawWord, rawClue] of pairs) {
-      const word = rawWord.trim().toLocaleUpperCase("da-DK").replace(/\s+/g, " ");
+      const word = rawWord.trim().toLocaleUpperCase("da-DK");
       const clue = rawClue.trim();
-      if (!/^[A-ZÆØÅ]+(?:[ -][A-ZÆØÅ]+)*$/.test(word) || !clue) return null;
+      if (!/^[A-ZÆØÅ]+(?:-[A-ZÆØÅ]+)*$/.test(word) || !clue) return null;
       entries.push({ word, clue, length: answerLetters(word).length, source: "custom" });
-      const reverseWord = clue.trim().toLocaleUpperCase("da-DK").replace(/\s+/g, " ");
-      if (useBothDirections && /^[A-ZÆØÅ]+(?:[ -][A-ZÆØÅ]+)*$/.test(reverseWord)) {
+      const reverseWord = clue.trim().toLocaleUpperCase("da-DK");
+      if (useBothDirections && /^[A-ZÆØÅ]+(?:-[A-ZÆØÅ]+)*$/.test(reverseWord)) {
         entries.push({ word: reverseWord, clue: word, length: answerLetters(reverseWord).length, source: "custom" });
       }
     }
@@ -37,34 +37,32 @@ export function customEntryKey(entry: DictionaryEntry): string {
 export interface CustomDictionary {
   id: string;
   name: string;
-  showSuggestions: boolean;
-  useAutofill: boolean;
   entries: DictionaryEntry[];
   /** Shared dictionaries are read-only copies owned by another user. */
   shared?: boolean;
   sharedId?: string;
   shareId?: string;
   ownerLabel?: string;
-  /** User preference; shared dictionaries default to disabled. */
-  enabled?: boolean;
+  /** Whether this dictionary is included in suggestions and autofill. */
+  enabled: boolean;
+  attribution?: string;
 }
 
 export function parseCustomDictionaries(saved: unknown): CustomDictionary[] {
   try {
     if (Array.isArray(saved)) return saved.filter(item => item && typeof item.id === "string" && typeof item.name === "string" && Array.isArray(item.entries)).map(item => ({
       id: item.id, name: item.name,
-      showSuggestions: item.shared ? item.showSuggestions === true : item.showSuggestions !== false,
-      useAutofill: item.shared ? item.useAutofill === true : item.useAutofill !== false,
       shared: item.shared === true, ownerLabel: typeof item.ownerLabel === "string" ? item.ownerLabel : undefined,
       sharedId: typeof item.sharedId === "string" ? item.sharedId : undefined,
       shareId: typeof item.shareId === "string" ? item.shareId : undefined,
-      enabled: item.enabled === true,
+      enabled: typeof item.enabled === "boolean" ? item.enabled : item.shared !== true,
+      attribution: typeof item.attribution === "string" ? item.attribution : undefined,
       entries: validEntries(item.entries),
     }));
     return [];
-  } catch { return [{ id: "default", name: "Egen ordbog", showSuggestions: true, useAutofill: true, entries: [] }]; }
+  } catch { return [{ id: "default", name: "Egen ordbog", enabled: true, entries: [] }]; }
 }
 function validEntries(value: unknown): DictionaryEntry[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(entry => typeof entry?.word === "string" && /^[A-ZÆØÅ]+(?:[ -][A-ZÆØÅ]+)*$/.test(entry.word) && typeof entry.clue === "string" && entry.clue.trim()).map(entry => ({ ...entry, length: answerLetters(entry.word).length, source: "custom" as const }));
+  return value.filter(entry => typeof entry?.word === "string" && /^[A-ZÆØÅ]+(?:-[A-ZÆØÅ]+)*$/.test(entry.word) && typeof entry.clue === "string" && entry.clue.trim()).map(entry => ({ ...entry, length: answerLetters(entry.word).length, source: "custom" as const }));
 }

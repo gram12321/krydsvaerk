@@ -1,0 +1,145 @@
+/* Shared visual language for the player, workshop, preview and dictionaries. */
+:root{--ui-ink:#294a37;--ui-muted:#718175;--ui-copper:#a87855;--ui-paper:#fffefa;--ui-line:#dce5d9;--ui-tint:#edf3e9;--ui-serif:'DM Serif Display',Georgia,serif}
+.site-header{height:64px;margin:0 5%;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #dcded4}
+.site-header .brand{display:flex;align-items:center;gap:10px;color:#213b30;font-size:25px;font-weight:700;letter-spacing:-1.4px;text-decoration:none;flex-shrink:0}
+.site-header .brand-dot{color:#c58359}
+.site-header .brand:focus-visible{outline:3px solid #d88a55;outline-offset:3px}
+.site-header .brand-mark{display:grid;grid-template-columns:repeat(2,13px);grid-template-rows:repeat(2,13px);gap:2px;transform:rotate(-5deg);letter-spacing:0}
+.site-header .brand-mark span{display:grid;place-items:center;background:#284b39;color:white;font-size:8px;border-radius:1px}
+.site-header .brand-mark span:nth-child(2){background:#d88b60}
+.site-header .brand-mark span:nth-child(3){background:#d0b779}
+.site-header-note,.site-header-edition{font-size:9px;font-weight:700;letter-spacing:.12em;color:#89988c}
+.site-header-note{display:flex;align-items:center;gap:8px}
+.site-header-note>span{width:6px;height:6px;border-radius:50%;background:#a6b88b}
+.site-header-edition>span{margin-left:5px;font-size:16px;color:#c58359}
+.page-intro{margin:0 0 20px}
+.page-intro .eyebrow{display:flex;align-items:center;gap:9px;color:var(--ui-copper);font-size:9px;font-weight:700;letter-spacing:.13em}
+.page-intro .eyebrow:before{content:'';width:20px;height:1px;background:#c08c67}
+.page-intro h1{font:400 36px/1.12 var(--ui-serif);letter-spacing:-.035em;color:#243f31;margin:8px 0}
+.page-intro h1 em{color:#b9754d;font-weight:400}
+.page-intro .page-description{font-size:12px;line-height:1.6;color:var(--ui-muted);max-width:650px}
+.panel-heading.shared-panel-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:0 0 12px;padding:0;border:0}
+.panel-heading.shared-panel-heading>.panel-heading-copy{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;gap:4px 10px;min-width:0}
+.shared-panel-heading .panel-heading-copy>span{color:var(--ui-copper);font-size:9px;font-weight:700;letter-spacing:.08em;line-height:1.5}
+.shared-panel-heading h2,.shared-panel-heading h3{font:400 24px/1.2 var(--ui-serif);letter-spacing:-.02em;color:var(--ui-ink);margin:0;overflow-wrap:anywhere}
+.panel-description{font-size:11px;line-height:1.5;color:var(--ui-muted)}
+.editor-shell,.player-page .app-shell{max-width:1500px;margin-inline:auto}
+.editor-shell .editor-main,.player-page .player-main{max-width:1400px;margin:auto;padding:22px 5% 28px}
+.editor-board-panel,.suggestion-panel,.dictionary-panel{padding:16px}
+
+/* Setup is three small cards with the same numbered heading treatment. */
+.designer-control-bar{grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) minmax(0,.9fr);gap:12px;align-items:stretch;margin-bottom:16px;padding:0;border:0;background:transparent}
+.designer-control-bar .designer-control-group{display:block;grid-column:auto;min-width:0;max-width:none;padding:14px;border:1px solid #e2e7de;border-radius:5px;background:var(--ui-paper)}
+.designer-control-group .shared-panel-heading h3{font-size:21px}
+.designer-control-group .shared-panel-heading{margin-bottom:12px}
+.designer-control-row{gap:6px}
+.designer-control-row input,.designer-control-row select{min-width:0;max-width:100%}
+.designer-control-row input{flex:1 1 130px;width:130px}
+.designer-control-row button{min-height:32px}
+.designer-control-bar .generator-settings{margin-top:9px}
+.designer-control-status{grid-column:1/-1;margin:0}
+.designer-control-status:empty{display:none}
+
+/* Player controls use the workshop's scale; the grid keeps its own legible type. */
+.player-page .player-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.player-page .intro-panel,.player-page .puzzle-panel{display:block;min-width:0;padding:16px;border:1px solid #e2e7de;border-radius:5px;background:var(--ui-paper)}
+.player-workspace>.panel-resizer{display:none}
+.player-page .settings-card{margin:18px 0 0;padding:16px 0 0;width:100%;border:0;border-top:1px solid #e5e9e1;border-radius:0;box-shadow:none;background:transparent}
+.player-page .settings-title{margin:0 0 10px;color:var(--ui-ink);font-size:12px;font-weight:700}
+.player-page .settings-card label{margin:0 0 6px;font-size:11px;color:#516957}
+.player-page .settings-card select{width:100%;height:34px;min-width:0;padding:6px 9px;border:1px solid #d5ded3;border-radius:3px;background:white;color:var(--ui-ink);font-size:12px}
+.player-page .select-wrap select{height:34px;padding-right:28px}
+.player-page .select-wrap>span{top:4px;right:10px;font-size:18px}
+.player-page .primary-button{height:34px;margin-top:8px;padding:0 10px;font-size:11px;gap:7px}
+.player-page .primary-button svg{width:16px;height:16px}
+.player-page .setting-caption{font-size:10px;margin-top:8px}
+.player-page .howto{display:flex;max-width:none;gap:10px;margin-top:20px;padding:12px;background:var(--ui-tint);border:1px solid #e0e8dc;border-radius:4px}
+.player-page .howto-icon{width:28px;height:28px;font-size:18px}
+.player-page .howto strong{font-size:11px}
+.player-page .howto p{font-size:11px;line-height:1.5;margin-top:4px}
+.player-page .side-foot{margin-top:0;padding-top:16px;font-size:8px}
+.player-page .puzzle-header-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.player-page .print-grid-button,.player-page .fullscreen-grid-button{min-height:32px;padding:6px 9px;font-size:11px}
+.player-page .puzzle-meta{margin:0 0 12px;gap:8px;font-size:9px}
+.player-page .board-wrap{padding:6px;box-shadow:none;border-radius:3px}
+.player-page .active-clue{gap:10px;margin-top:12px;padding:10px 12px;border-radius:3px}
+.player-page .active-clue-icon{width:28px;height:28px;font-size:21px}
+.player-page .active-clue div:nth-child(2){gap:4px}
+.player-page .active-clue strong{font-size:12px;overflow-wrap:anywhere}
+.player-page .active-clue div:nth-child(2)>span,.player-page .clue-length{font-size:8px}
+.player-page .puzzle-actions{gap:6px;margin-top:10px;flex-wrap:wrap}
+.player-page .puzzle-actions button{min-height:34px;padding:6px 8px;gap:6px;font-size:11px}
+.player-page .puzzle-actions svg{width:16px;height:16px}
+.player-page .progress-row{margin-top:16px;font-size:11px;gap:8px;flex-wrap:wrap}
+.player-page .progress-row>div{flex-wrap:wrap;gap:5px 9px}
+.player-page .progress-track{margin-top:8px;height:4px}
+.player-page .status-message{margin-top:8px;font-size:10px;line-height:1.5}
+.player-page .dictionary-section{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:20px;max-width:none;margin:16px 0 0;padding:16px;border:1px solid #e2e7de;border-radius:5px;background:var(--ui-paper)}
+.player-page .dictionary-heading{display:block;min-width:0}
+.player-page .dictionary-heading h2{font:400 24px/1.2 var(--ui-serif)}
+.player-page .dictionary-heading p{font-size:11px;line-height:1.6;margin:0}
+.player-page .dictionary-section details{width:100%;min-width:0}
+.player-page .dictionary-section summary{padding:9px 11px;border-radius:3px;font-size:11px}
+.player-page .dictionary-content{padding:12px}
+.player-page .dictionary-content>label{display:block;margin-bottom:7px}
+.player-page .dictionary-content select{max-width:100%;min-height:32px;padding:5px 8px;border:1px solid #d5ded3;border-radius:3px;background:white;color:var(--ui-ink);font-size:12px}
+.player-page .dictionary-content .builtin-dictionary-options>div{grid-template-columns:1fr}
+.player-page .dictionary-content .builtin-dictionary-options legend{font:700 13px/1.4 'DM Sans',sans-serif}
+.player-page .dictionary-content .builtin-dictionary-options>p{font-size:11px}
+.player-page .dictionary-bottom{flex-wrap:wrap}
+.player-page .dictionary-bottom button{min-height:32px;padding:6px 10px;font-size:11px}
+.player-page .dictionary-content textarea{min-width:0;font-size:12px}
+.player-page .footer,.editor-footer{margin:0 5%;padding:20px 0 28px;font-size:9px;color:#8a988b}
+.preview-notice{width:90%;max-width:1260px;margin:14px auto 0;padding:10px 12px;gap:8px 12px;border:1px solid #e6d9b6;border-radius:4px;background:#f8f2e2;color:#75664c;font-size:11px;line-height:1.5}
+.preview-notice>span{flex:1 1 320px}
+.preview-notice button{min-height:32px;padding:6px 10px;border:1px solid #d5ded3;border-radius:3px;background:var(--ui-paper);color:var(--ui-ink);font-size:11px;font-weight:700}
+
+/* The player's direction badge and soft status blocks also belong in the editor. */
+.suggestion-panel .selection-info{position:relative;gap:6px;margin:12px 0;padding:12px 12px 12px 50px;border:1px solid #e0e8dc;border-radius:3px;background:var(--ui-tint)}
+.suggestion-panel .selection-info:before{content:attr(data-direction);position:absolute;left:11px;top:12px;display:grid;place-items:center;width:28px;height:28px;background:#d9e7d4;color:#537656;font-size:21px}
+.suggestion-panel .selection-info>span{font-size:8px;line-height:1.5;letter-spacing:.09em}
+.suggestion-panel .selection-info>strong{font-size:18px;overflow-wrap:anywhere}
+.suggestion-panel .selection-info>small{font-size:10px}
+.background-finder{border-color:#e0e8dc;background:var(--ui-tint)}
+.background-finder-state i{background:#a6b88b}
+.board-action-buttons button,.player-page .puzzle-actions button{border-radius:3px}
+.dictionary-browser-heading{flex-wrap:wrap;gap:10px}
+.dictionary-browser-heading>.shared-panel-heading{min-width:0;flex:1 1 180px;margin-bottom:0}
+.dictionary-browser-heading>button{min-height:32px;padding:6px 9px;font-size:11px}
+
+@media(min-width:1101px){
+  .player-page .player-workspace{grid-template-columns:minmax(0,var(--choice-share)) 20px minmax(0,var(--puzzle-share));gap:0}
+  .player-workspace>.panel-resizer{display:flex}
+  .player-page .player-workspace.preview-workspace{grid-template-columns:minmax(0,1fr)}
+  .player-page .preview-workspace .puzzle-panel{width:100%;max-width:850px;margin-inline:auto}
+}
+@media(max-width:1100px){
+  .editor-workspace{grid-template-columns:minmax(0,1fr);gap:16px}
+  .editor-workspace>.panel-resizer{display:none}
+  .designer-control-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .designer-control-bar .publish-setup{grid-column:1/-1}
+  .site-header-note{display:none}
+}
+@media(max-width:650px){
+  .site-header{height:58px;margin-inline:4%;gap:10px}
+  .site-header .brand{font-size:23px;gap:8px}
+  .site-header-edition{font-size:8px;letter-spacing:.06em;text-align:right}
+  .editor-shell .editor-main,.player-page .player-main{padding:18px 4% 24px}
+  .page-intro{margin-bottom:16px}
+  .page-intro h1{font-size:30px}
+  .page-intro .page-description{font-size:11px}
+  .preview-notice{width:92%;margin-top:12px}
+  .shared-panel-heading h2,.shared-panel-heading h3,.player-page .dictionary-heading h2{font-size:22px}
+  .designer-control-bar{grid-template-columns:minmax(0,1fr)}
+  .designer-control-bar .designer-control-group{grid-column:auto;padding:12px}
+  .editor-board-panel,.suggestion-panel,.player-page .intro-panel,.player-page .puzzle-panel{padding:14px}
+  .player-page .dictionary-section{grid-template-columns:minmax(0,1fr);gap:14px;padding:14px}
+  .player-page .active-clue{flex-wrap:wrap}
+  .player-page .active-clue div:nth-child(2){flex:1;min-width:100px}
+  .player-page .puzzle-actions button{flex:1 1 80px;font-size:10px;gap:4px}
+  .player-page .howto{display:flex}
+  .player-page .scroll-hint{font-size:10px}
+}
+@media(pointer:coarse){
+  .player-page .primary-button,.player-page .settings-card select,.player-page .puzzle-actions button,.player-page .print-grid-button,.player-page .fullscreen-grid-button,.designer-control-row button,.designer-control-row input,.designer-control-row select{min-height:40px;height:auto}
+}

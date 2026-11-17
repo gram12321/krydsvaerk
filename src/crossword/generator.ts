@@ -11,13 +11,13 @@ export interface Placement extends DictionaryEntry {
   direction: Direction;
   clueRow: number;
   clueCol: number;
-  cueKind: "clue" | "image";
+  cueKind: "clue" | "image" | "emoji";
   imageMarker?: { left: number; top: number; arrow: string };
   arrow: string;
   cells?: [number, number][];
 }
 export interface LetterCell { kind: "letter"; solution: string; placementIds: number[] }
-export interface ClueCell { kind: "clue"; placementIds: number[]; width: number; height: number }
+export interface ClueCell { kind: "clue"; placementIds: number[]; width: number; height: number; emoji?: string }
 export interface ImageCell { kind: "image"; width: number; height: number; illustration?: string; offsetX?: number; offsetY?: number; fit?: "cover" | "contain"; placementIds: number[] }
 export interface CoveredCell { kind: "covered" }
 export interface BlockCell { kind: "block" }
@@ -45,7 +45,7 @@ export function puzzleFromLayout(layout: GridLayout, answers: Record<string, Dic
   for (const arrow of layout.arrows ?? []) cells[arrow.row][arrow.col] = { kind: "arrow", direction: arrow.direction };
   for (const clue of layout.clues) {
     for (let r = clue.row; r < clue.row + clue.height; r++) for (let c = clue.col; c < clue.col + clue.width; c++) cells[r][c] = { kind: "covered" };
-    cells[clue.row][clue.col] = { kind: "clue", placementIds: [], width: clue.width, height: clue.height };
+    cells[clue.row][clue.col] = { kind: "clue", placementIds: [], width: clue.width, height: clue.height, ...(clue.emoji ? { emoji: clue.emoji } : {}) };
   }
   for (const image of layout.images) {
     for (let r = image.row; r < image.row + image.height; r++) for (let c = image.col; c < image.col + image.width; c++) cells[r][c] = { kind: "covered" };
@@ -60,13 +60,16 @@ export function puzzleFromLayout(layout: GridLayout, answers: Record<string, Dic
       : word.start.col >= cue.col && word.start.col < cue.col + cue.width && word.start.row === cue.row + cue.height;
     const placement: Placement = {
       ...answers[word.id], id, row: word.start.row, col: word.start.col, direction: word.direction,
-      clueRow: cue.row, clueCol: cue.col, cueKind: image ? "image" : "clue",
+      clueRow: cue.row, clueCol: cue.col, cueKind: image ? "image" : (clue?.emoji || clue?.emojiAny) && (!clue.emojiDirection || clue.emojiDirection === word.direction) ? "emoji" : "clue",
       ...(image ? { imageMarker: imageCueMarker(image, word) } : {}),
       arrow: straight ? (word.direction === "across" ? "→" : "↓") : (word.direction === "across" ? "↓→" : "→↓"),
       ...(word.breaks?.length ? { cells: wordCells(word).map(({ row, col }): [number, number] => [row, col]) } : {}),
     };
     const clueCell = clue ? cells[clue.row][clue.col] : cells[image!.row][image!.col];
-    if (clueCell.kind === "clue") clueCell.placementIds.push(id);
+    if (clueCell.kind === "clue") {
+      clueCell.placementIds.push(id);
+      if (placement.cueKind === "emoji" && !clueCell.emoji) clueCell.emoji = placement.clue;
+    }
     if (clueCell.kind === "image") clueCell.placementIds.push(id);
     for (const [i, [r, c]] of placementCells(placement).entries()) {
       const current = cells[r][c];

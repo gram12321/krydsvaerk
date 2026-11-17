@@ -2,8 +2,8 @@
 import { type DictionaryEntry } from "./dictionary";
 import { answerLetters, fitsBreaks, wordCells, type GridLayout } from "./layout";
 
-self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; forcedWords: DictionaryEntry[] }>) => {
-  const { layout, entries, letters, forcedWords } = event.data;
+self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; forcedWords: DictionaryEntry[]; knownSolutions?: Record<string, DictionaryEntry>[] }>) => {
+  const { layout, entries, letters, forcedWords, knownSolutions = [] } = event.data;
   const required = forcedWords.map(entry => entry.word);
   const cache = createFillCache(entries, new Set(layout.words.map(word => word.length)));
   const placements: { id: string; entry: DictionaryEntry }[] = [];
@@ -15,6 +15,11 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
     const possible: typeof candidates = [];
     let uncertain = false;
     for (const word of candidates) {
+      if (knownSolutions.some(solution => solution[word.id]?.word === entry.word)) {
+        possible.push(word);
+        if (possible.length > 1) break;
+        continue;
+      }
       const fixed = { ...letters };
       wordCells(word).forEach((cell, i) => { fixed[`${cell.row},${cell.col}`] = answerLetters(entry.word)[i]; });
       const result = fillLayout(layout, entries, 10000, fixed, false, undefined, cache, required);

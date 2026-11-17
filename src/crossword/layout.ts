@@ -2,7 +2,7 @@ import type { Direction } from "./generator";
 
 export interface Point { row: number; col: number }
 export interface Area extends Point { width: number; height: number }
-export interface ClueArea extends Area { id: string }
+export interface ClueArea extends Area { id: string; emoji?: string; emojiAny?: boolean; emojiDirection?: Direction }
 export interface ImageArea extends Area { id: string; illustration?: string; offsetX?: number; offsetY?: number; fit?: "cover" | "contain" }
 export interface GridWord {
   id: string;
@@ -22,6 +22,14 @@ export interface GridLayout {
   words: GridWord[];
   blocks?: Point[];
   arrows?: ArrowCell[];
+}
+export function entryMatchesWordCue(layout: GridLayout, word: GridWord, entry: { source: string; clue: string }): boolean {
+  const cue = layout.clues.find(item => item.id === word.clueId);
+  return cue?.emojiAny && (!cue.emojiDirection || cue.emojiDirection === word.direction)
+    ? entry.source === "emoji"
+    : cue?.emoji && (!cue.emojiDirection || cue.emojiDirection === word.direction)
+      ? entry.source === "emoji" && entry.clue === cue.emoji
+      : true;
 }
 export interface LayoutIssue { message: string; cells: Point[] }
 
@@ -46,12 +54,12 @@ export function wordCells(word: GridWord): Point[] {
   }));
 }
 
-export function answerLetters(answer: string): string { return answer.replace(/[ -]/g, ""); }
+export function answerLetters(answer: string): string { return answer.replace(/-/g, ""); }
 export function answerBreaks(answer: string): number[] {
   let letters = 0;
   const breaks: number[] = [];
   for (const char of answer) {
-    if (char === " " || char === "-") breaks.push(letters);
+    if (char === "-") breaks.push(letters);
     else letters++;
   }
   return breaks;
@@ -116,6 +124,7 @@ export function layoutIssues(layout: GridLayout): LayoutIssue[] {
     if (!Number.isInteger(area.width) || !Number.isInteger(area.height) || area.width < 1 || area.height < 1 || !inside(area) || !inside({ row: area.row + area.height - 1, col: area.col + area.width - 1 })) {
       add(`Invalid area: ${id}`, [area]); continue;
     }
+    if (isClue && (layout.clues[index].emoji || layout.clues[index].emojiAny) && (area.width !== 1 || area.height !== 1)) add(`Emoji clue ${id} must be one cell`, [area]);
     for (let r = area.row; r < area.row + area.height; r++) for (let c = area.col; c < area.col + area.width; c++) {
       if (cells[r][c].area) add(`Overlapping areas at ${r},${c}`, [{ row: r, col: c }]);
       cells[r][c].area = id;

@@ -28,6 +28,7 @@ export function createTemplateLayout(size: number): GridLayout | null {
 export interface DesignerTemplateOptions {
   dictionary?: readonly DictionaryEntry[];
   includeHyphenatedWords?: boolean;
+  includeEmojiCues?: boolean;
   forcedHyphenatedWordCount?: number;
   image?: { width: number; height: number; illustration?: string };
   previousLayout?: GridLayout;
@@ -83,7 +84,8 @@ export function createDesignerTemplateLayout(size: number, options: DesignerTemp
       }
     }
 
-    const layout = layoutFromDesignerMask(mask, size, arrows, imageArea, image?.illustration);
+    const baseLayout = layoutFromDesignerMask(mask, size, arrows, imageArea, image?.illustration);
+    const layout = baseLayout && options.includeEmojiCues ? addEmojiCues(baseLayout, options.dictionary ?? []) : baseLayout;
     if (!layout || validateLayout(layout).length || !hasConnectedWords(layout)) continue;
     if (forcedHyphenatedWordCount && layout.words.filter(word => word.breaks?.length).length !== forcedHyphenatedWordCount) continue;
     if (options.maxAnswerLength && layout.words.some(word => word.length > options.maxAnswerLength!)) continue;
@@ -98,7 +100,7 @@ export function createDesignerTemplateLayout(size: number, options: DesignerTemp
     candidates.push({ layout, score: scoreLayout(layout) + dictionaryScore * 12 + separatorScore * 6 + Math.random() * 5 });
   }
   if (!candidates.length) {
-    if (image || forcedHyphenatedWordCount) return null;
+    if (image || forcedHyphenatedWordCount || options.includeEmojiCues) return null;
     if (options.maxAnswerLength) return null;
     const fallbackMask = makeFamilyMask(seed, size, "long-runs");
     for (let index = 1; index < size; index++) { fallbackMask[size - 1][index] = "."; fallbackMask[index][size - 1] = "."; }
@@ -115,6 +117,30 @@ export function createDesignerTemplateLayout(size: number, options: DesignerTemp
   });
   const finalistCount = Math.min(8, candidates.length);
   return candidates[Math.floor(Math.random() * finalistCount)].layout;
+}
+
+function addEmojiCues(layout: GridLayout, dictionary: readonly DictionaryEntry[]): GridLayout | null {
+  const emojiEntries = dictionary.filter(entry => entry.source === "emoji");
+  const candidates = layout.clues.flatMap(cue => {
+    if (cue.width !== 1 || cue.height !== 1) return [];
+    const words = layout.words.filter(word => word.clueId === cue.id);
+    if (words.length !== 1) return [];
+    const word = words[0];
+    return emojiEntries.some(entry => answerLetters(entry.word).length === word.length
+      && JSON.stringify(answerBreaks(entry.word)) === JSON.stringify(word.breaks ?? [])) ? [cue] : [];
+  });
+  if (!candidates.length) return null;
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  const targetCount = Math.min(candidates.length, Math.max(1, Math.min(3, Math.floor(layout.words.length / 12))));
+  const emojiCueIds = new Set(candidates.slice(0, targetCount).map(cue => cue.id));
+  return { ...layout, clues: layout.clues.map(cue => {
+    if (!emojiCueIds.has(cue.id)) return cue;
+    const word = layout.words.find(item => item.clueId === cue.id)!;
+    return { ...cue, emojiAny: true, emojiDirection: word.direction };
+  }) };
 }
 
 /** Split long runs using interior clue cells, without changing the outer edges. */

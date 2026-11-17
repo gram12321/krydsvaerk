@@ -28,8 +28,10 @@ function countBits(value: number): number {
 function makeIndex(entries: readonly DictionaryEntry[], lengths: Set<number>): Map<number, LengthIndex> {
   const groups = new Map<number, DictionaryEntry[]>();
   const seen = new Set<string>();
-  // Custom clues override the built-in clue for the same answer.
-  for (const entry of [...entries.filter(e => e.source === "custom"), ...entries.filter(e => e.source !== "custom")]) {
+  // Custom clues override built-in entries; an emoji entry must remain
+  // available to the solver even when the same spelling exists elsewhere.
+  const ordered = [...entries.filter(e => e.source === "custom"), ...entries.filter(e => e.source === "emoji"), ...entries.filter(e => e.source !== "custom" && e.source !== "emoji")];
+  for (const entry of ordered) {
     if (!lengths.has(answerLetters(entry.word).length) || !isValidAnswerSpelling(entry.word) || seen.has(entry.word)) continue;
     seen.add(entry.word);
     const length = answerLetters(entry.word).length;
@@ -89,7 +91,7 @@ export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEn
       }
     }
   }
-  const provisionalWords = provisional.length ? [...new Set(dictionary.filter(entry => isValidAnswerSpelling(entry.word) && !/[ -]/.test(entry.word)).map(entry => entry.word))] : [];
+  const provisionalWords = provisional.length ? [...new Set(dictionary.filter(entry => isValidAnswerSpelling(entry.word) && !/-/.test(entry.word)).map(entry => entry.word))] : [];
   const provisionalCache = new Map<string, boolean>();
   function possiblePartialWords(domains: Uint32Array[]): boolean {
     if (!provisional.length) return true;
@@ -253,12 +255,16 @@ export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEn
   for (let i = 0; i < slots.length; i++) {
     const letters = slots[i].map(cell => fixedLetters[cell] || "");
     if (letters.some(letter => letter && ALPHABET.indexOf(letter) < 0)) return { status: "unsatisfiable" };
-    const key = JSON.stringify([layout.words[i].length, layout.words[i].breaks ?? [], letters]);
+    const cue = layout.clues.find(item => item.id === layout.words[i].clueId);
+    const appliesEmoji = Boolean(cue?.emojiAny && (!cue.emojiDirection || cue.emojiDirection === layout.words[i].direction)
+      || cue?.emoji && (!cue.emojiDirection || cue.emojiDirection === layout.words[i].direction));
+    const emojiWords = appliesEmoji ? new Set(dictionary.filter(entry => entry.source === "emoji" && (cue!.emojiAny || entry.clue === cue!.emoji)).map(entry => entry.word)) : undefined;
+    const key = JSON.stringify([layout.words[i].length, layout.words[i].breaks ?? [], appliesEmoji ? cue?.emojiAny ? true : cue?.emoji : null, letters]);
     let domain = usableCache?.patterns.get(key);
     if (!domain) {
       domain = indexes[i]!.full.slice();
       indexes[i]!.entries.forEach((entry, id) => {
-        if (!fitsBreaks(layout.words[i], entry.word)) domain![id >>> 5] &= ~(1 << (id & 31));
+        if (!fitsBreaks(layout.words[i], entry.word) || (emojiWords && !emojiWords.has(entry.word))) domain![id >>> 5] &= ~(1 << (id & 31));
       });
       for (let position = 0; position < letters.length; position++) {
         if (!letters[position]) continue;
@@ -280,7 +286,11 @@ export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEn
     const domain = solution[i];
     const block = domain.findIndex(value => value !== 0);
     const id = (block << 5) + (31 - Math.clz32(domain[block] & -domain[block]));
-    return [word.id, indexes[i]!.entries[id]];
+    const answer = indexes[i]!.entries[id];
+    const cue = layout.clues.find(item => item.id === word.clueId);
+    const appliesEmoji = Boolean((cue?.emojiAny || cue?.emoji) && (!cue.emojiDirection || cue.emojiDirection === word.direction));
+    const cueEntry = appliesEmoji ? dictionary.find(entry => entry.word === answer.word && entry.source === "emoji" && (cue!.emojiAny || entry.clue === cue!.emoji)) : undefined;
+    return [word.id, cueEntry ?? answer];
   }));
   return limited ? { status: "limit", answers } : { status: "solved", answers };
 }
