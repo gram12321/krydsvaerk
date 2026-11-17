@@ -28,6 +28,7 @@ export function createTemplateLayout(size: number): GridLayout | null {
 export interface DesignerTemplateOptions {
   dictionary?: readonly DictionaryEntry[];
   includeHyphenatedWords?: boolean;
+  forcedHyphenatedWordCount?: number;
   image?: { width: number; height: number; illustration?: string };
   previousLayout?: GridLayout;
   maxAnswerLength?: number;
@@ -49,6 +50,8 @@ export function createDesignerTemplateLayout(size: number, options: DesignerTemp
     || image.width < 1 || image.height < 1 || image.width > size - 3 || image.height > size - 3)) return null;
 
   const hyphenWords = options.includeHyphenatedWords === false ? [] : eligibleHyphenWords(options.dictionary ?? [], size);
+  const forcedHyphenatedWordCount = Math.max(0, Math.floor(options.forcedHyphenatedWordCount ?? 0));
+  if (forcedHyphenatedWordCount > 0 && !hyphenWords.length) return null;
   const candidates: TemplateCandidate[] = [];
   const slotCounts = new Map<string, Set<string>>();
   for (const entry of options.dictionary ?? []) {
@@ -66,10 +69,11 @@ export function createDesignerTemplateLayout(size: number, options: DesignerTemp
     const imageArea = image ? reserveImagePocket(mask, size, image.width, image.height) : undefined;
     if (image && !imageArea) continue;
 
-    const separator = hyphenWords.length && Math.random() < 0.3 ? chooseSeparatorRun(size, hyphenWords) : undefined;
+    if (options.maxAnswerLength) shortenRuns(mask, size, options.maxAnswerLength);
+    const separators = chooseSeparatorRuns(mask, size, hyphenWords, forcedHyphenatedWordCount || (hyphenWords.length && Math.random() < 0.3 ? 1 : 0), options.maxAnswerLength);
+    if (!separators) continue;
     const arrows = new Map<string, "across" | "down">();
-    if (separator) {
-      reserveSeparatorRun(mask, separator);
+    for (const separator of separators) {
       for (let index = 0; index < separator.breaks.length; index++) {
         const letterOffset = separator.breaks[index] + index;
         const point = separator.direction === "across"
@@ -79,10 +83,9 @@ export function createDesignerTemplateLayout(size: number, options: DesignerTemp
       }
     }
 
-    if (options.maxAnswerLength) shortenRuns(mask, size, options.maxAnswerLength);
-
     const layout = layoutFromDesignerMask(mask, size, arrows, imageArea, image?.illustration);
     if (!layout || validateLayout(layout).length || !hasConnectedWords(layout)) continue;
+    if (forcedHyphenatedWordCount && layout.words.filter(word => word.breaks?.length).length !== forcedHyphenatedWordCount) continue;
     if (options.maxAnswerLength && layout.words.some(word => word.length > options.maxAnswerLength!)) continue;
     // Do not let random masks regress to the old short-slot pattern.
     if (layout.words.filter(word => word.length > 4).length < 2) continue;
@@ -91,10 +94,11 @@ export function createDesignerTemplateLayout(size: number, options: DesignerTemp
       const count = slotCounts.get(`${word.length}:${(word.breaks ?? []).join(",")}`)?.size ?? 0;
       return score + Math.log1p(count);
     }, 0) / layout.words.length : 0;
-    candidates.push({ layout, score: scoreLayout(layout) + dictionaryScore * 12 + Math.random() * 5 });
+    const separatorScore = layout.words.filter(word => word.breaks?.length).reduce((score, word) => score + Math.log1p(slotCounts.get(`${word.length}:${word.breaks!.join(",")}`)?.size ?? 0), 0);
+    candidates.push({ layout, score: scoreLayout(layout) + dictionaryScore * 12 + separatorScore * 6 + Math.random() * 5 });
   }
   if (!candidates.length) {
-    if (image) return null;
+    if (image || forcedHyphenatedWordCount) return null;
     if (options.maxAnswerLength) return null;
     const fallbackMask = makeFamilyMask(seed, size, "long-runs");
     for (let index = 1; index < size; index++) { fallbackMask[size - 1][index] = "."; fallbackMask[index][size - 1] = "."; }
@@ -218,31 +222,44 @@ function reserveImagePocket(mask: string[][], size: number, width: number, heigh
   return undefined;
 }
 
-function chooseSeparatorRun(size: number, entries: DictionaryEntry[]): SeparatorRun | undefined {
-  const entry = chooseRandom(entries);
-  const breaks = answerBreaks(entry.word);
-  const physicalLength = answerLetters(entry.word).length + breaks.length;
-  const direction = Math.random() < 0.5 ? "across" : "down";
-  return {
-    direction,
-    start: direction === "across"
-      ? { row: size - 1, col: size - physicalLength }
-      : { row: size - physicalLength, col: size - 1 },
-    physicalLength,
-    breaks,
-  };
-}
-
-function reserveSeparatorRun(mask: string[][], run: SeparatorRun): void {
-  for (let offset = 0; offset < run.physicalLength; offset++) {
-    const row = run.start.row + (run.direction === "down" ? offset : 0);
-    const col = run.start.col + (run.direction === "across" ? offset : 0);
-    mask[row][col] = ".";
+function chooseSeparatorRuns(mask: string[][], size: number, entries: DictionaryEntry[], count: number, maxAnswerLength?: number): SeparatorRun[] | undefined {
+  if (!count) return [];
+  const patterns = new Map<string, { physicalLength: number; breaks: number[]; words: Set<string> }>();
+  for (const entry of entries) {
+    const breaks = answerBreaks(entry.word);
+    const length = answerLetters(entry.word).length;
+    if (maxAnswerLength && length > maxAnswerLength) continue;
+    const physicalLength = length + breaks.length;
+    const key = `${physicalLength}:${breaks.join(",")}`;
+    const pattern = patterns.get(key) ?? { physicalLength, breaks, words: new Set<string>() };
+    pattern.words.add(entry.word);
+    patterns.set(key, pattern);
   }
-  const before = run.direction === "across"
-    ? { row: run.start.row, col: run.start.col - 1 }
-    : { row: run.start.row - 1, col: run.start.col };
-  if (before.row > 0 && before.col > 0) mask[before.row][before.col] = "#";
+  const candidates: (SeparatorRun & { weight: number })[] = [];
+  for (const direction of ["across", "down"] as const) for (let line = 1; line < size; line++) {
+    let position = 1;
+    while (position < size) {
+      const at = (p: number) => direction === "across" ? mask[line][p] : mask[p][line];
+      if (at(position) !== ".") { position++; continue; }
+      const start = position;
+      while (position < size && at(position) === ".") position++;
+      const physicalLength = position - start;
+      for (const pattern of patterns.values()) if (pattern.physicalLength === physicalLength) {
+        candidates.push({ direction, start: direction === "across" ? { row: line, col: start } : { row: start, col: line }, physicalLength, breaks: pattern.breaks, weight: Math.log1p(pattern.words.size) + Math.random() });
+      }
+    }
+  }
+  candidates.sort((a, b) => b.weight - a.weight);
+  const chosen: SeparatorRun[] = [];
+  const occupied = new Set<string>();
+  for (const run of candidates) {
+    const cells = Array.from({ length: run.physicalLength }, (_, offset) => pointKey({ row: run.start.row + (run.direction === "down" ? offset : 0), col: run.start.col + (run.direction === "across" ? offset : 0) }));
+    if (cells.some(cell => occupied.has(cell))) continue;
+    chosen.push(run);
+    cells.forEach(cell => occupied.add(cell));
+    if (chosen.length === count) return chosen;
+  }
+  return undefined;
 }
 
 function layoutFromDesignerMask(

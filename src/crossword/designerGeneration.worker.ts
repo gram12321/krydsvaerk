@@ -7,12 +7,13 @@ type Request = {
   size: number;
   entries: DictionaryEntry[];
   includeHyphenatedWords: boolean;
+  forcedHyphenatedWordCount?: number;
   image?: { width: number; height: number; illustration?: string };
   previousLayout?: GridLayout;
 };
 
 self.onmessage = async (event: MessageEvent<Request>) => {
-  const { size, entries, includeHyphenatedWords, image, previousLayout } = event.data;
+  const { size, entries, includeHyphenatedWords, forcedHyphenatedWordCount = 0, image, previousLayout } = event.data;
   // Try more different geometries before spending a large budget on any one.
   // Some valid grids are much easier to fill than others of the same size.
   const attempts = 28;
@@ -27,8 +28,9 @@ self.onmessage = async (event: MessageEvent<Request>) => {
     completed = attempt;
     const candidate = createDesignerTemplateLayout(size, {
       dictionary: entries,
-      includeHyphenatedWords: Boolean(confirmed) && includeHyphenatedWords,
-      maxAnswerLength: confirmed ? (attempt === confirmedAt + 1 ? 8 : undefined) : 6,
+      includeHyphenatedWords: (Boolean(confirmed) || forcedHyphenatedWordCount > 0) && includeHyphenatedWords,
+      forcedHyphenatedWordCount,
+      maxAnswerLength: forcedHyphenatedWordCount > 0 ? (attempt % 3 === 0 ? 8 : 6) : confirmed ? (attempt === confirmedAt + 1 ? 8 : undefined) : 6,
       image,
       previousLayout: attempt === 1 ? previousLayout : undefined,
     });

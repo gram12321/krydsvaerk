@@ -3,8 +3,8 @@ import { answerLetters, fitsBreaks, wordCells, type GridLayout } from "./layout"
 import { getEntryScore, indexWordScores, isValidAnswerSpelling, type DictionaryEntry } from "./dictionary";
 import { nextSuggestionIndex } from "./suggestionOrder";
 
-self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; solverEntries: DictionaryEntry[]; selected: string; letters: Record<string, string>; knownSolutions?: Record<string, DictionaryEntry>[]; unsatisfiableCandidates?: string[] }>) => {
-  const { layout, entries, solverEntries, selected, letters, knownSolutions = [], unsatisfiableCandidates = [] } = event.data;
+self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; solverEntries: DictionaryEntry[]; selected: string; letters: Record<string, string>; requiredWords?: string[]; knownSolutions?: Record<string, DictionaryEntry>[]; unsatisfiableCandidates?: string[] }>) => {
+  const { layout, entries, solverEntries, selected, letters, requiredWords = [], knownSolutions = [], unsatisfiableCandidates = [] } = event.data;
   const slot = layout.words.find(word => word.id === selected);
   if (!slot) return;
   const cells = wordCells(slot);
@@ -19,6 +19,7 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
     .sort((a, b) => Number(knownByWord.has(b.word)) - Number(knownByWord.has(a.word)) || (scores.get(b.word) ?? 0) - (scores.get(a.word) ?? 0) || a.word.localeCompare(b.word, "da"));
   const rejected = new Set(unsatisfiableCandidates);
   const compatible = (answers: Record<string, DictionaryEntry>) => {
+    if (!requiredWords.every(word => Object.values(answers).some(entry => entry.word === word))) return false;
     const assignments = new Map<string, string>();
     for (const word of layout.words) {
       const answer = answers[word.id]?.word;
@@ -32,8 +33,9 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
   const firstLetterFixed = Boolean(letters[`${cells[0].row},${cells[0].col}`]);
   const rejectedResults: string[] = [];
   for (let position = 0; position < candidates.length; position++) {
-    const next = nextSuggestionIndex(candidates, position, initials, firstLetterFixed);
-    [candidates[position], candidates[next]] = [candidates[next], candidates[position]];
+    const next = nextSuggestionIndex(candidates, position, initials, firstLetterFixed, (a, b) =>
+      knownByWord.has(a.word) === knownByWord.has(b.word) && (scores.get(a.word) ?? 0) === (scores.get(b.word) ?? 0));
+    if (next !== position) candidates.splice(position, 0, candidates.splice(next, 1)[0]);
     const entry = candidates[position];
     const fixed = { ...letters };
     cells.forEach((cell, i) => { fixed[`${cell.row},${cell.col}`] = answerLetters(entry.word)[i]; });
@@ -41,7 +43,7 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
     // dictionary is suggestion-only; every crossing slot must still be
     // fillable from the user's autofill-enabled dictionaries.
     const witness = knownByWord.get(entry.word)?.find(compatible);
-    const result = witness ? { status: "solved" as const, answers: witness } : rejected.has(entry.word) ? { status: "unsatisfiable" as const } : fillLayout(layout, [...solverEntries, entry], 3000, fixed);
+    const result = witness ? { status: "solved" as const, answers: witness } : rejected.has(entry.word) ? { status: "unsatisfiable" as const } : fillLayout(layout, [...solverEntries, entry], 3000, fixed, false, undefined, undefined, requiredWords);
     checked++;
     if (result.status === "solved") {
       found++;

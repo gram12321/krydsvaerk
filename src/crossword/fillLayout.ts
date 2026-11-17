@@ -52,7 +52,7 @@ function makeIndex(entries: readonly DictionaryEntry[], lengths: Set<number>): M
 }
 
 /** Fill a complete layout, propagating crossing constraints before each search step. */
-export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEntry[], maxNodes = 10000, fixedLetters: Readonly<Record<string, string>> = {}, optimize = false, onProgress?: (progress: FillProgress) => void, cache?: FillCache): FillResult {
+export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEntry[], maxNodes = 10000, fixedLetters: Readonly<Record<string, string>> = {}, optimize = false, onProgress?: (progress: FillProgress) => void, cache?: FillCache, requiredWords: readonly string[] = []): FillResult {
   const errors = validateSolverLayout(layout);
   if (errors.length) return { status: "invalid", errors };
   const partial = validateLayout(layout).length > 0;
@@ -61,6 +61,8 @@ export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEn
   const index = usableCache?.index ?? makeIndex(dictionary, new Set(layout.words.map(word => word.length)));
   const indexes = layout.words.map(word => index.get(word.length));
   if (indexes.some(item => !item)) return { status: "unsatisfiable" };
+  const requiredIds = requiredWords.map(required => indexes.map(index => index!.entries.findIndex(entry => entry.word === required)));
+  if (requiredIds.some(ids => ids.every(id => id < 0))) return { status: "unsatisfiable" };
   const slots = layout.words.map(word => wordCells(word).map(p => `${p.row},${p.col}`));
   // Adjacent occupied cells in an unfinished crossing must be able to form
   // part of a dictionary answer, with room to extend on either side.
@@ -180,6 +182,10 @@ export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEn
     if (nodes % 100 === 0) report();
     if (!propagate(domains, queue)) return null;
     if (!possiblePartialWords(domains)) return null;
+    for (const ids of requiredIds) {
+      const possible = domains.some((domain, i) => ids[i] >= 0 && (domain[ids[i] >>> 5] & (1 << (ids[i] & 31))));
+      if (!possible) return null;
+    }
     if (optimize) {
       let upper = 0;
       for (let i = 0; i < domains.length; i++) {

@@ -20,9 +20,10 @@ type SuggestionSolutionBatch = {
   unsatisfiableCandidates: string[];
   complete: boolean;
 };
-const tools: { id: "write" | "autofill" | LayoutTool; label: string; icon: string; shape?: string }[] = [
+const tools: { id: "write" | "autofill" | "edit-clue" | LayoutTool; label: string; icon: string; shape?: string }[] = [
   { id: "write", label: "Bogstavfelt / vælg ord", icon: "A" },
   { id: "autofill", label: "Autofyld ord", icon: "?" },
+  { id: "edit-clue", label: "Rediger ledetråd", icon: "" },
   { id: "letter", label: "Gør til bogstavfelt", icon: "A", shape: "letter" },
   { id: "clue", label: "Ledetrådsfelt 1 × 1", icon: "↘", shape: "clue" },
   { id: "wide", label: "Ledetrådsfelt 2 × 1", icon: "↘", shape: "wide" },
@@ -36,6 +37,7 @@ function ToolIcon({ id }: { id: typeof tools[number]["id"] }) {
   return <svg className="board-tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {id === "write" && <><path d="M5 19h14M8 16l3.5-9 3.5 9M9.1 13h4.8" /><path d="M17 5v5M14.5 7.5h5" /></>}
     {id === "autofill" && <><rect x="3.5" y="3.5" width="17" height="17" rx="2" /><path d="M8 15l7-7M13.5 7l3.5 3.5M7 6v2M6 7h2M17 15v2M16 16h2" /></>}
+    {id === "edit-clue" && <><path d="M4 20h4l11-11-4-4L4 16v4zM13.5 6.5l4 4" /><path d="M12 20h8" /></>}
     {id === "letter" && <><rect x="4" y="4" width="16" height="16" rx="1" /><path d="M8 17l4-10 4 10M9.2 14h5.6" /></>}
     {(id === "clue" || id === "wide" || id === "tall") && <><rect x={id === "wide" ? 2 : id === "tall" ? 7 : 4} y={id === "tall" ? 2 : id === "wide" ? 7 : 4} width={id === "wide" ? 20 : id === "tall" ? 10 : 16} height={id === "tall" ? 20 : id === "wide" ? 10 : 16} rx="1" /><path d="M8.5 9h4M8.5 12h3M13 14l3 3m0 0v-3m0 3h-3" /></>}
     {id === "block" && <rect x="4" y="4" width="16" height="16" rx="1" fill="currentColor" />}
@@ -79,7 +81,7 @@ function describeLayoutError(error: string, layout: GridLayout): string {
   return "Kontrollér feltets opbygning.";
 }
 type PublishedItem = { id: string; name: string; puzzle: Puzzle };
-type Draft = { id: string; name: string; size: number; layout: GridLayout; letters: Record<string, string>; clues: Record<string, string> };
+type Draft = { id: string; name: string; size: number; layout: GridLayout; letters: Record<string, string>; clues: Record<string, string>; forcedWords?: DictionaryEntry[] };
 const LIBRARY_KEY = STORAGE_KEYS.library;
 const DRAFTS_KEY = STORAGE_KEYS.drafts;
 function validLibrary(value: unknown): PublishedItem[] {
@@ -171,6 +173,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
   const [imageWidth, setImageWidth] = useState(2);
   const [imageHeight, setImageHeight] = useState(2);
   const [includeHyphenatedWords, setIncludeHyphenatedWords] = useState(true);
+  const [forcedHyphenatedWordCount, setForcedHyphenatedWordCount] = useState(0);
   const [illustration, setIllustration] = useState("preset:landscape");
   const [layout, setLayout] = useState<GridLayout>(() => ({ width: 9, height: 9, clues: [], images: [], words: [], blocks: [], arrows: [] }));
   const [initialGeneration, setInitialGeneration] = useState(true);
@@ -178,6 +181,10 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
   const [direction, setDirection] = useState<"across" | "down">(layout.words[0]?.direction ?? "across");
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [letters, setLetters] = useState<Record<string, string>>({});
+  const [forcedWords, setForcedWords] = useState<DictionaryEntry[]>([]);
+  const [forcedStatus, setForcedStatus] = useState("");
+  const solverEntries = useMemo(() => forcedWords.length ? [...autofillEntries, ...forcedWords] : autofillEntries, [autofillEntries, forcedWords]);
+  const requiredWords = useMemo(() => forcedWords.map(entry => entry.word), [forcedWords]);
   const [suggestions, setSuggestions] = useState<{ entry: DictionaryEntry; clues: { clue: string; score: number }[] }[]>([]);
   const suggestionSolutions = useRef<SuggestionSolutionBatch[]>([]);
   const generatedSolution = useRef<{ layout: GridLayout; dictionary: DictionaryEntry[]; answers: Record<string, DictionaryEntry> } | null>(null);
@@ -188,12 +195,14 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
   const [showGridCounts, setShowGridCounts] = useState(false);
   const [progress, setProgress] = useState({ checked: 0, total: 0, uncertain: 0, done: false });
   const [clues, setClues] = useState<Record<string, string>>({});
+  const [editingClueId, setEditingClueId] = useState<string | null>(null);
+  const [inlineClueId, setInlineClueId] = useState<string | null>(null);
   const [publishMessage, setPublishMessage] = useState("");
   const [text, setText] = useState("");
   const [useBothDictionaryDirections, setUseBothDictionaryDirections] = useState(false);
   const [clueFirstDictionaryFormat, setClueFirstDictionaryFormat] = useState(false);
   const [message, setMessage] = useState("");
-  const [tool, setTool] = useState<"write" | "autofill" | LayoutTool>("write");
+  const [tool, setTool] = useState<"write" | "autofill" | "edit-clue" | LayoutTool>("write");
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [imageDrag, setImageDrag] = useState<{ start: { row: number; col: number }; end: { row: number; col: number } } | null>(null);
   const imageDragRef = useRef<typeof imageDrag>(null);
@@ -232,17 +241,17 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
   useEffect(() => {
     if (searchErrors.length || !searchLayout.words.length) { backgroundSolutions.current = null; setBackgroundStatus({ count: 0, average: 0, minimum: 0, perWord: {}, state: "idle" }); return; }
     const previous = backgroundSolutions.current;
-    const candidates = previous?.layout === searchLayout && previous.dictionary === autofillEntries
+    const candidates = previous?.layout === searchLayout && previous.dictionary === solverEntries
       && Object.entries(previous.letters).every(([cell, letter]) => !letter || letters[cell] === letter)
       ? [...previous.answers] : [];
     for (const saved of suggestionSolutions.current) {
-      if (saved.layout === searchLayout && saved.dictionary === autofillEntries
+      if (saved.layout === searchLayout && saved.dictionary === solverEntries
         && Object.entries(saved.baseLetters).every(([cell, letter]) => !letter || letters[cell] === letter)) {
         candidates.push(...saved.solutions.map(solution => solution.answers));
       }
     }
-    if (generatedSolution.current?.layout === layout && generatedSolution.current.dictionary === autofillEntries) candidates.push(generatedSolution.current.answers);
-    const dictionaryWords = new Set(autofillEntries.map(entry => entry.word));
+    if (generatedSolution.current?.layout === layout && generatedSolution.current.dictionary === solverEntries) candidates.push(generatedSolution.current.answers);
+    const dictionaryWords = new Set(solverEntries.map(entry => entry.word));
     const retained: Record<string, DictionaryEntry>[] = [];
     for (const answers of candidates) {
         const assignments = new Map<string, string>();
@@ -253,10 +262,11 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
           wordCells(word).forEach((cell, i) => assignments.set(keyOf(cell.row, cell.col), answerLetters(answer)[i]));
         }
         if (valid && Object.entries(letters).every(([cell, letter]) => !letter || assignments.get(cell) === letter)
+          && requiredWords.every(word => Object.values(answers).some(entry => entry.word === word))
           && !retained.some(existing => searchLayout.words.every(word => existing[word.id]?.word === answers[word.id]?.word))) retained.push(answers);
         if (retained.length >= 256) break;
     }
-    const batch = { layout: searchLayout, dictionary: autofillEntries, letters: { ...letters }, answers: retained };
+    const batch = { layout: searchLayout, dictionary: solverEntries, letters: { ...letters }, answers: retained };
     backgroundSolutions.current = batch;
     const updateStatus = (state: "searching" | "finished" | "error") => {
       const counts = searchLayout.words.map(word => new Set(batch.answers.map(answers => answers[word.id]?.word).filter(Boolean)).size);
@@ -277,24 +287,24 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       if (event.data.type === "done" && backgroundSolutions.current === batch) updateStatus("finished");
     };
     worker.onerror = () => { if (backgroundSolutions.current === batch) updateStatus("error"); };
-    worker.postMessage({ layout: searchLayout, entries: autofillEntries, letters, knownSolutions: retained });
+    worker.postMessage({ layout: searchLayout, entries: solverEntries, letters, knownSolutions: retained, requiredWords });
     return () => { worker.terminate(); };
-  }, [layout, searchLayout, autofillEntries, letters, searchErrors]);
+  }, [layout, searchLayout, solverEntries, letters, searchErrors, requiredWords]);
   useEffect(() => {
     setSuggestions([]); setProgress({ checked: 0, total: 0, uncertain: 0, done: false });
     if (!selectedId || !searchLayout.words.some(word => word.id === selectedId) || searchErrors.length) return;
-    const priorBatches = suggestionSolutions.current.filter(batch => batch.layout === searchLayout && batch.dictionary === autofillEntries && batch.suggestionDictionary === entries && batch.selected === selectedId);
+    const priorBatches = suggestionSolutions.current.filter(batch => batch.layout === searchLayout && batch.dictionary === solverEntries && batch.suggestionDictionary === entries && batch.selected === selectedId);
     const applicable = priorBatches.filter(batch => Object.entries(batch.baseLetters).every(([cell, letter]) => !letter || letters[cell] === letter));
     const sameLetters = (base: Record<string, string>) => Object.entries(base).every(([cell, letter]) => (letters[cell] || "") === letter)
       && Object.entries(letters).every(([cell, letter]) => (base[cell] || "") === letter);
     const generated = generatedSolution.current;
     const knownSolutions = applicable.flatMap(batch => batch.solutions.map(solution => solution.answers));
-    if (generated?.layout === layout && generated.dictionary === autofillEntries) knownSolutions.unshift(generated.answers);
+    if (generated?.layout === layout && generated.dictionary === solverEntries) knownSolutions.unshift(generated.answers);
     const background = backgroundSolutions.current;
-    if (background?.layout === searchLayout && background.dictionary === autofillEntries) knownSolutions.unshift(...background.answers);
+    if (background?.layout === searchLayout && background.dictionary === solverEntries) knownSolutions.unshift(...background.answers);
     const unsatisfiableCandidates = applicable.filter(batch => sameLetters(batch.baseLetters)).flatMap(batch => batch.unsatisfiableCandidates);
-    const solutionBatch: SuggestionSolutionBatch = { layout: searchLayout, dictionary: autofillEntries, suggestionDictionary: entries, selected: selectedId, baseLetters: { ...letters }, solutions: [], unsatisfiableCandidates: [], complete: false };
-    suggestionSolutions.current = [...suggestionSolutions.current.filter(batch => batch.layout === searchLayout && batch.dictionary === autofillEntries && batch.suggestionDictionary === entries), solutionBatch].slice(-24);
+    const solutionBatch: SuggestionSolutionBatch = { layout: searchLayout, dictionary: solverEntries, suggestionDictionary: entries, selected: selectedId, baseLetters: { ...letters }, solutions: [], unsatisfiableCandidates: [], complete: false };
+    suggestionSolutions.current = [...suggestionSolutions.current.filter(batch => batch.layout === searchLayout && batch.dictionary === solverEntries && batch.suggestionDictionary === entries), solutionBatch].slice(-24);
     const worker = new Worker(new URL("./crossword/suggestions.worker.ts", import.meta.url), { type: "module" });
     worker.onmessage = event => {
       const data = event.data;
@@ -311,9 +321,30 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
         setProgress({ checked: data.checked, total: data.total, uncertain: data.uncertain, done: data.type === "done" });
       }
     };
-    worker.postMessage({ layout: searchLayout, entries, solverEntries: autofillEntries, selected: selectedId, letters, knownSolutions, unsatisfiableCandidates });
+    worker.postMessage({ layout: searchLayout, entries, solverEntries: solverEntries, selected: selectedId, letters, knownSolutions, unsatisfiableCandidates: requiredWords.length ? [] : unsatisfiableCandidates, requiredWords });
     return () => worker.terminate();
-  }, [layout, searchLayout, entries, autofillEntries, selectedId, letters, searchErrors]);
+  }, [layout, searchLayout, entries, solverEntries, selectedId, letters, searchErrors, requiredWords]);
+  useEffect(() => {
+    setForcedStatus("");
+    if (!requiredWords.length || searchErrors.length || !searchLayout.words.length) return;
+    const worker = new Worker(new URL("./crossword/forcedWords.worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = event => {
+      const { placements, unavailable, unresolved } = event.data as { placements: { id: string; entry: DictionaryEntry }[]; unavailable: string[]; unresolved: string[] };
+      setForcedStatus(unavailable.length ? `Ingen løsning fundet med de fastlagte ord (${unavailable.join(", ")}).` : unresolved.length ? `Placeringen kunne ikke afgøres inden for beregningsgrænsen (${unresolved.join(", ")}).` : "");
+      if (!placements.length) return;
+      const next = { ...letters };
+      for (const { id, entry } of placements) {
+        const word = searchLayout.words.find(item => item.id === id);
+        if (word) wordCells(word).forEach((cell, i) => { next[keyOf(cell.row, cell.col)] = answerLetters(entry.word)[i]; });
+      }
+      if (Object.keys(next).some(key => next[key] !== letters[key])) {
+        updateLetters(next);
+        setLayoutMessage("Et fastlagt ord er indsat, fordi det kun har én mulig placering.");
+      }
+    };
+    worker.postMessage({ layout: searchLayout, entries: solverEntries, letters, forcedWords });
+    return () => worker.terminate();
+  }, [searchLayout, solverEntries, letters, forcedWords, searchErrors]);
   useEffect(() => {
     if (!imageDrag) return;
     const finish = () => finishImageArea();
@@ -325,7 +356,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     };
   }, [!!imageDrag]);
   const autofillWorker = useRef<Worker | null>(null);
-  useEffect(() => () => { if (autofillWorker.current) { autofillWorker.current.terminate(); autofillWorker.current = null; setAutofillProgress(null); } }, [layout, autofillEntries, letters]);
+  useEffect(() => () => { if (autofillWorker.current) { autofillWorker.current.terminate(); autofillWorker.current = null; setAutofillProgress(null); } }, [layout, solverEntries, letters, requiredWords]);
   function cancelAutofill() {
     autofillWorker.current?.terminate(); autofillWorker.current = null;
     setAutofillProgress(null); setLayoutMessage("Søgningen blev afbrudt.");
@@ -383,19 +414,19 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       setLayoutMessage(result.status === "limit" ? (id ? "Et gyldigt ord er indsat. Nogle højere prioriterede ord kunne ikke afklares inden for beregningsgrænsen." : "Den bedste fundne løsning er indsat. Beregningsgrænsen blev nået, så en højere score kan være mulig.") : id ? "Ordet er autofyldt." : "Feltet er udfyldt med højest mulig samlet ordscore.");
     };
     const compatibleBatches = id && !checkOnly ? suggestionSolutions.current
-      .filter(batch => batch.complete && batch.layout === searchLayout && batch.dictionary === autofillEntries && batch.suggestionDictionary === entries
+      .filter(batch => batch.complete && batch.layout === searchLayout && batch.dictionary === solverEntries && batch.suggestionDictionary === entries
         && Object.entries(batch.baseLetters).every(([cell, letter]) => letters[cell] === letter))
       .sort((a, b) => Object.keys(b.baseLetters).length - Object.keys(a.baseLetters).length) : [];
     const knownSolutions = compatibleBatches.flatMap(batch => batch.solutions);
-    if (generatedSolution.current?.layout === layout && generatedSolution.current.dictionary === autofillEntries) knownSolutions.unshift({ answers: generatedSolution.current.answers });
-    if (backgroundSolutions.current?.layout === searchLayout && backgroundSolutions.current.dictionary === autofillEntries) knownSolutions.unshift(...backgroundSolutions.current.answers.map(answers => ({ answers })));
+    if (generatedSolution.current?.layout === layout && generatedSolution.current.dictionary === solverEntries) knownSolutions.unshift({ answers: generatedSolution.current.answers });
+    if (backgroundSolutions.current?.layout === searchLayout && backgroundSolutions.current.dictionary === solverEntries) knownSolutions.unshift(...backgroundSolutions.current.answers.map(answers => ({ answers })));
     const unsatisfiableCandidates = compatibleBatches.filter(batch => batch.selected === id).flatMap(batch => batch.unsatisfiableCandidates);
-    worker.postMessage({ layout: searchLayout, entries: autofillEntries, letters, selected: id, checkOnly, knownSolutions, unsatisfiableCandidates });
+    worker.postMessage({ layout: searchLayout, entries: solverEntries, letters, selected: id, checkOnly, knownSolutions, unsatisfiableCandidates: requiredWords.length ? [] : unsatisfiableCandidates, requiredWords });
   }
   function emptyLayout() {
     generationWorker.current?.terminate(); generationWorker.current = null;
     autofillWorker.current?.terminate(); autofillWorker.current = null;
-    setDraftId(""); setDesignName(""); setLayout({ width: size, height: size, clues: [], images: [], words: [], blocks: [], arrows: [] });
+    setForcedWords([]); setDraftId(""); setDesignName(""); setLayout({ width: size, height: size, clues: [], images: [], words: [], blocks: [], arrows: [] });
     setSelectedId(""); setDirection("across"); setSelectedCell(null); setSelectedImageId(null);
     setLetters({}); setClues({}); setPublishMessage(""); setAutofillProgress(null); setTool("clue");
     setLayoutMessage("Tomt felt oprettet. Placér en ledetråd for at begynde.");
@@ -423,7 +454,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       }
       const next = result.layout as GridLayout;
       generatedSolution.current = { layout: next, dictionary: autofillEntries, answers: result.answers as Record<string, DictionaryEntry> };
-      setDraftId(""); setDesignName(""); setLayout(next); setSelectedId(next.words[0]?.id); setDirection(next.words[0]?.direction ?? "across"); setSelectedCell(null); setSelectedImageId(null); setLetters({}); setClues({}); setPublishMessage("");
+      setForcedWords([]); setDraftId(""); setDesignName(""); setLayout(next); setSelectedId(next.words[0]?.id); setDirection(next.words[0]?.direction ?? "across"); setSelectedCell(null); setSelectedImageId(null); setLetters({}); setClues({}); setPublishMessage("");
       const messages = [];
       if (includeImage) messages.push(`Billedområde ${imageWidth} × ${imageHeight} er placeret.`);
       if (next.words.some(word => word.breaks?.length)) messages.push("Feltet indeholder en separator til et svar med bindestreg eller mellemrum.");
@@ -436,7 +467,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       setAutofillProgress(null);
       setLayoutMessage("Feltgeneratoren stødte på en fejl. Det nuværende felt er bevaret; prøv igen.");
     };
-    worker.postMessage({ size, entries: autofillEntries, includeHyphenatedWords, previousLayout: layout,
+    worker.postMessage({ size, entries: autofillEntries, includeHyphenatedWords, forcedHyphenatedWordCount: includeHyphenatedWords ? forcedHyphenatedWordCount : 0, previousLayout: layout,
       image: includeImage ? { width: imageWidth, height: imageHeight, illustration } : undefined });
   }
   useEffect(() => {
@@ -495,7 +526,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     updateLetters(next, { id: selected.id, clue });
   }
   function changeCell(row: number, col: number) {
-    if (tool === "write" || tool === "autofill") return;
+    if (tool === "write" || tool === "autofill" || tool === "edit-clue") return;
     if (tool === "image-area") return;
     const next = editLayout(layout, { row, col }, tool);
     if (!next) { setLayoutMessage("Feltet er for tæt på kanten til den valgte størrelse."); return; }
@@ -643,7 +674,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     const name = designName.trim();
     if (!name) { setPublishMessage("Giv designet et navn før det gemmes."); return; }
     const id = draftId || crypto.randomUUID();
-    const draft = { id, name, size: layout.width, layout, letters, clues };
+    const draft = { id, name, size: layout.width, layout, letters, clues, forcedWords };
     const next = [...drafts.filter(item => item.id !== id), draft];
     try { await onDraftsChange(next); setDraftId(id); setPublishMessage("Kladden er gemt i Supabase."); }
     catch { setPublishMessage("Kladden kunne ikke gemmes i Supabase."); }
@@ -653,7 +684,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     if (!draft) return;
     generationWorker.current?.terminate(); generationWorker.current = null;
     autofillWorker.current?.terminate(); autofillWorker.current = null;
-    setDraftId(id); setDesignName(draft.name); setSize(draft.size); setLayout(draft.layout); setLetters(draft.letters); setClues(draft.clues);
+    setDraftId(id); setDesignName(draft.name); setSize(draft.size); setLayout(draft.layout); setLetters(draft.letters); setClues(draft.clues); setForcedWords(draft.forcedWords ?? []);
     setSelectedId(draft.layout.words[0]?.id); setDirection(draft.layout.words[0]?.direction ?? "across"); setSelectedCell(null); setSelectedImageId(null); setTool("write"); setPublishMessage("Kladden er åbnet."); setLayoutMessage("");
   }
   function publish() {
@@ -683,6 +714,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
         <div className="designer-control-group grid-setup"><span className="designer-control-label">GITTER</span><div className="designer-control-row"><label htmlFor="size">Feltets størrelse</label><select id="size" value={size} onChange={event => setSize(Number(event.target.value))}><option value={9}>9 × 9</option><option value={11}>11 × 11</option><option value={13}>13 × 13</option></select><button type="button" className="secondary-action" onClick={newLayout}>Generér nyt felt</button><button type="button" className="secondary-action" onClick={emptyLayout}>Start med tomt felt</button></div>
           <details className="generator-settings"><summary>Indstillinger</summary><div className="designer-generator-options">
             <label><input type="checkbox" checked={includeHyphenatedWords} onChange={event => setIncludeHyphenatedWords(event.target.checked)} /> Brug bindestregs- og flerdelte ord, hvis muligt</label>
+            <div className="generator-word-count"><label htmlFor="forced-hyphen-count">Antal bindestregs- og flerdelte ord</label><select id="forced-hyphen-count" value={forcedHyphenatedWordCount} disabled={!includeHyphenatedWords} onChange={event => setForcedHyphenatedWordCount(Number(event.target.value))}><option value={0}>Automatisk</option>{[1, 2, 3, 4].map(count => <option key={count} value={count}>{count}</option>)}</select></div>
             <label><input type="checkbox" checked={includeImage} onChange={event => setIncludeImage(event.target.checked)} /> Medtag billedområde</label>
             {includeImage && <div className="designer-image-size"><label>Bredde<select aria-label="Billedområdets bredde" value={imageWidth} onChange={event => setImageWidth(Number(event.target.value))}>{Array.from({ length: Math.min(5, size - 3) }, (_, index) => index + 1).map(value => <option key={value} value={value}>{value} felter</option>)}</select></label><label>Højde<select aria-label="Billedområdets højde" value={imageHeight} onChange={event => setImageHeight(Number(event.target.value))}>{Array.from({ length: Math.min(5, size - 3) }, (_, index) => index + 1).map(value => <option key={value} value={value}>{value} felter</option>)}</select></label></div>}
           </div></details>
@@ -694,10 +726,11 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     {designerTab === "workshop" && <div className="editor-workspace"><section className="editor-board-panel"><div className="panel-heading"><div><span>01 / FELT</span><h2>Dit krydsord</h2></div></div>
     <div className="board-toolbar" role="region" aria-label="Rediger feltet">
       <div className="board-tool-groups">
-        {[{ label: "Udfyld", items: tools.slice(0, 2) }, { label: "Felter", items: tools.slice(2, 8) }, { label: "Ordmellemrum", items: tools.slice(8) }].map(group => <div className="board-tool-group" key={group.label}><div className="layout-tool-buttons" role="group" aria-label={group.label}>{group.items.map(item => <button key={item.id} type="button" aria-label={item.label} data-tooltip={item.label} aria-pressed={tool === item.id} onClick={() => setTool(item.id)}><ToolIcon id={item.id} /></button>)}</div></div>)}
+        {[{ label: "Udfyld", items: tools.slice(0, 3) }, { label: "Felter", items: tools.slice(3, 9) }, { label: "Ordmellemrum", items: tools.slice(9) }].map(group => <div className="board-tool-group" key={group.label}><div className="layout-tool-buttons" role="group" aria-label={group.label}>{group.items.map(item => <button key={item.id} type="button" aria-label={item.label} data-tooltip={item.label} aria-pressed={tool === item.id} onClick={() => setTool(item.id)}><ToolIcon id={item.id} /></button>)}</div></div>)}
         <div className="direction-control" role="group" aria-label="Ordretning"><button type="button" data-tooltip="Vandret" aria-label="Vandret" aria-pressed={direction === "across"} onClick={() => chooseDirection("across")}>→</button><button type="button" data-tooltip="Lodret" aria-label="Lodret" aria-pressed={direction === "down"} onClick={() => chooseDirection("down")}>↓</button></div>
       </div>
       <div className="board-toolbar-footer"><span className="tool-name">{tools.find(item => item.id === tool)?.label}</span><div className="board-action-buttons" role="group" aria-label="Gitterfunktioner"><button type="button" data-tooltip="Kontrollér udfyldning" onClick={() => startAutofill(undefined, true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg><span>Kontrollér</span></button><button type="button" data-tooltip="Fyld gitteret" onClick={() => startAutofill()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 12l3 3 5-6" /></svg><span>Fyld gitter</span></button><button type="button" data-tooltip="Ryd alle bogstaver" onClick={() => updateLetters({})}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg><span>Ryd bogstaver</span></button></div></div>
+    {editingClueId && <div className="clue-edit-tool" role="group" aria-label="Rediger ledetråd"><label>Ledetråd<input autoFocus aria-label="Tekstledetråd til valgt ord" value={clues[editingClueId] ?? ""} onChange={event => setClues(current => ({ ...current, [editingClueId]: event.target.value }))} onKeyDown={event => { if (event.key === "Enter" || event.key === "Escape") setEditingClueId(null); }} placeholder="Brug ordbogens ledetråd" /></label><button type="button" onClick={() => setEditingClueId(null)}>Færdig</button></div>}
     </div>
     {tool === "image-area" && <div className="image-choices"><label>Fyld billedområdet med<select aria-label="Vælg illustration" value={(selectedImage?.illustration ?? illustration).startsWith("data:") ? "upload" : (selectedImage?.illustration ?? illustration)} onChange={event => { if (event.target.value !== "upload") { setIllustration(event.target.value); updateSelectedImage({ illustration: event.target.value }); } }}><option value="preset:landscape">Landskab</option><option value="preset:flower">Blomst</option><option value="preset:house">Hus</option><option value="upload">Upload eget billede</option></select></label><input aria-label="Upload billede" type="file" accept="image/*" onChange={event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { if (typeof reader.result === "string") { setIllustration(reader.result); updateSelectedImage({ illustration: reader.result }); } }; reader.readAsDataURL(file); }} /></div>}
     {tool === "image-area" && selectedImage && <div className="image-controls" role="group" aria-label="Indstillinger for valgt billede">
@@ -707,7 +740,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       <button type="button" onClick={() => updateSelectedImage({ offsetX: 50, offsetY: 50 })}>Centrér billedet</button>
       <p>Størrelsen ændres fra øverste venstre hjørne. Frigivne felter bliver sorte; udvidelse erstatter indholdet i de nye felter.</p>
     </div>}
-    <details className="board-help"><summary>Hjælp til værktøjet</summary><p className="helper">{tool === "write" ? "Vælg ordretning, og klik på et bogstavfelt for at vælge et ord. Træk i et billede for at flytte det." : tool === "autofill" ? "Vælg ordretning, og klik på et bogstavfelt for at autofylde ordet." : tool === "image-area" ? "Træk over felterne for at oprette et billedområde, eller klik på et eksisterende område for at ændre det." : "Vælg et værktøj og klik på feltet. Store ledetrådsfelter starter i det valgte felt. Vælg bogstavfelt for at fjerne eller flytte en ledetråd."}</p></details>
+    <details className="board-help"><summary>Hjælp til værktøjet</summary><p className="helper">{tool === "write" ? "Vælg ordretning, og klik på et bogstavfelt for at vælge et ord. Træk i et billede for at flytte det." : tool === "autofill" ? "Vælg ordretning, og klik på et bogstavfelt for at autofylde ordet." : tool === "edit-clue" ? "Klik på en ledetråd i feltet for at redigere den." : tool === "image-area" ? "Træk over felterne for at oprette et billedområde, eller klik på et eksisterende område for at ændre det." : "Vælg et værktøj og klik på feltet. Store ledetrådsfelter starter i det valgte felt. Vælg bogstavfelt for at fjerne eller flytte en ledetråd."}</p></details>
     <p className="layout-status" role="status">{layoutMessage} {!initialGeneration && layoutErrors.length > 0 && `Feltet er ikke klar: ${layoutErrors.length} strukturelle problemer. Alle ord skal have mindst ét bogstav og en ledetråd.`}</p>
     {!initialGeneration && autofillProgress && <div className="autofill-progress"><p role="status">{autofillWorker.current ? "Søgning: " : "Seneste søgning: "}{autofillProgress}</p>{autofillWorker.current && <button type="button" className="subtle" onClick={cancelAutofill}>Afbryd søgning</button>}</div>}
     {!initialGeneration && layoutErrors.length > 0 && <details className="layout-errors"><summary>Se problemer i feltet</summary><ul>{[...new Set(layoutErrors.map(error => describeLayoutError(error, layout)))].map(error => <li key={error}>{error}</li>)}</ul></details>}
@@ -729,7 +762,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
         const src = imageArea.illustration?.startsWith("data:") ? imageArea.illustration : imageArea.illustration?.startsWith("preset:") ? `/illustrations/${imageArea.illustration.slice(7)}.svg` : undefined;
         return <button key={key} type="button" className={`edit-image-area${imageArea.id === selectedImageId ? " selected" : ""}`} style={{ gridRow: `${row + 1} / span ${imageArea.height}`, gridColumn: `${col + 1} / span ${imageArea.width}` }} aria-label={`Rediger række ${row + 1}, kolonne ${col + 1}`} aria-pressed={imageArea.id === selectedImageId} onClick={() => setSelectedImageId(imageArea.id)}>{src ? <img src={src} alt="" draggable={false} style={{ objectFit: imageArea.fit ?? "cover", objectPosition: `${imageArea.offsetX ?? 50}% ${imageArea.offsetY ?? 50}%` }} /> : "✦"}</button>;
       }
-      if (tool !== "write" && tool !== "autofill") {
+      if (tool !== "write" && tool !== "autofill" && tool !== "edit-clue") {
         const clueWords = clue ? layout.words.filter(word => word.clueId === clue.id) : [];
         const anchored = clue ? clueWords.filter(word => word.direction === "across"
           ? col === clue.col + clue.width - 1 && row === Math.max(clue.row, Math.min(clue.row + clue.height - 1, word.start.row))
@@ -754,7 +787,8 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
           const chosenClue = clues[word.id]?.trim();
           const suggestionCount = backgroundStatus.perWord[word.id];
           const countLabel = suggestionCount === undefined ? "" : `${suggestionCount} forskellige svar i gemte løsninger`;
-          return <button key={word.id} className={selectedId === word.id ? "editor-clue-selected" : ""} onClick={() => { setSelectedId(word.id); setDirection(word.direction); setSelectedCell(null); }} aria-invalid={clueProblems.length > 0} data-tooltip={[chosenClue, clueProblems.flatMap(item => [...item!]).join(" "), countLabel].filter(Boolean).join(" · ") || undefined} aria-label={`Vælg ${word.direction === "across" ? "vandret" : "lodret"} ord, række ${word.start.row + 1}, kolonne ${word.start.col + 1}${chosenClue ? `, ledetråd: ${chosenClue}` : ""}${countLabel ? `, ${countLabel}` : ""}`}><span className="editor-clue-text" style={position}>{chosenClue || ""}</span>{showGridCounts && suggestionCount !== undefined && <span className={`clue-suggestion-count ${word.direction}`} aria-hidden="true">{suggestionCount}</span>}<span aria-hidden="true" className={word.direction === "down" ? "clue-arrow-down" : "clue-arrow-across"} style={position}>{straight ? (word.direction === "across" ? "→" : "↓") : (word.direction === "across" ? "↓→" : "→↓")}</span></button>;
+          if (inlineClueId === word.id) return <textarea key={word.id} className="inline-clue-editor" autoFocus aria-label={`Rediger ledetråd ${word.direction === "across" ? "vandret" : "lodret"}`} value={clues[word.id] ?? ""} onChange={event => setClues(current => ({ ...current, [word.id]: event.target.value }))} onBlur={() => setInlineClueId(null)} onKeyDown={event => { if (event.key === "Enter" || event.key === "Escape") { event.preventDefault(); setInlineClueId(null); } }} />;
+          return <button key={word.id} className={selectedId === word.id ? "editor-clue-selected" : ""} onClick={() => { setSelectedId(word.id); setDirection(word.direction); setSelectedCell(null); if (tool === "edit-clue") setEditingClueId(word.id); }} onDoubleClick={() => { setEditingClueId(null); setInlineClueId(word.id); }} aria-invalid={clueProblems.length > 0} data-tooltip={[chosenClue, clueProblems.flatMap(item => [...item!]).join(" "), countLabel].filter(Boolean).join(" · ") || undefined} aria-label={`Vælg ${word.direction === "across" ? "vandret" : "lodret"} ord, række ${word.start.row + 1}, kolonne ${word.start.col + 1}${chosenClue ? `, ledetråd: ${chosenClue}` : ""}${countLabel ? `, ${countLabel}` : ""}`}><span className="editor-clue-text" style={position}>{chosenClue || ""}</span>{showGridCounts && suggestionCount !== undefined && <span className={`clue-suggestion-count ${word.direction}`} aria-hidden="true">{suggestionCount}</span>}<span aria-hidden="true" className={word.direction === "down" ? "clue-arrow-down" : "clue-arrow-across"} style={position}>{straight ? (word.direction === "across" ? "→" : "↓") : (word.direction === "across" ? "↓→" : "→↓")}</span></button>;
         })}</div>;
       }
       if (arrow) return <div key={key} className={`edit-arrow editor-separator${problemClass}`} data-tooltip={problemTitle} style={style} aria-label={arrow.direction === "across" ? "Ordmellemrum, pil til højre" : "Ordmellemrum, pil ned"}>{arrow.direction === "across" ? "→" : "↓"}</div>;
@@ -769,14 +803,13 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     {backgroundStatus.state !== "idle" && <section className="background-finder" aria-label="Baggrundsstatistik"><div className="background-finder-heading"><strong>Baggrundsstatistik</strong><span className={`background-finder-state ${backgroundStatus.state}`}><i aria-hidden="true" />{backgroundStatus.state === "searching" ? "Søger" : backgroundStatus.state === "error" ? "Fejl i søgningen" : "Alle kandidater undersøgt"}</span></div><div className="background-finder-metrics"><div><strong>{backgroundStatus.count.toLocaleString("da-DK")} <small>/ 256</small></strong><span>Gemte løsninger</span></div><div><strong>{backgroundStatus.average.toLocaleString("da-DK", { maximumFractionDigits: 1 })}</strong><span>Forslag pr. ord i snit</span></div><div><strong>{backgroundStatus.minimum.toLocaleString("da-DK")}</strong><span>Færrest forslag til et ord</span></div></div><p>Baseret på de gemte løsninger, inkl. udfyldte ord.</p><label className="grid-count-toggle"><input type="checkbox" checked={showGridCounts} onChange={event => setShowGridCounts(event.target.checked)} /> Vis antal i feltet</label></section>}</section>
     <aside className="suggestion-panel">
       <div className="panel-heading"><div><span>02 / ORDFORSLAG</span><h2>Ord og ledetråd</h2></div></div>
+      <div className="forced-words"><div className="help-title"><strong>Fastlagte ord</strong><span className="info-tip"><button type="button" aria-label="Om fastlagte ord" aria-describedby="forced-words-help">i</button><span id="forced-words-help" role="tooltip">Disse ord skal indgå i løsningen. De indsættes automatisk, når kun én placering er mulig.</span></span></div>{forcedWords.length ? forcedWords.map(entry => <button type="button" key={entry.word} onClick={() => setForcedWords(current => current.filter(item => item.word !== entry.word))} aria-label={`Fjern ${entry.word} fra fastlagte ord`}>{entry.word} ×</button>) : <small>Ingen fastlagte ord endnu.</small>}{forcedStatus && <p role="status">{forcedStatus}</p>}</div>
       {dictionaries.length > 0 && <div className="dictionary-picker"><label>Vælg ordbog <select aria-label="Vælg ordbog" value={currentDictionary?.id ?? ""} onChange={event => { setDictionaryId(event.target.value); setEditingKey(null); setMessage(""); }}>{dictionaries.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{currentDictionary && <><label><input type="checkbox" aria-label="Vis i ordforslag" checked={currentDictionary.showSuggestions} onChange={event => updateDictionary({ ...currentDictionary, showSuggestions: event.target.checked })} /> Vis i ordforslag</label><label><input type="checkbox" aria-label="Brug til autofyldning" checked={currentDictionary.useAutofill} onChange={event => updateDictionary({ ...currentDictionary, useAutofill: event.target.checked })} /> Brug til autofyldning</label></>}</div>}
       {selected ? <><div className="selection-info"><span>{selected.direction === "across" ? "→ VANDRET" : "↓ LODRET"} · {selected.length} BOGSTAVER</span><strong>{pattern}</strong><small>Række {selected.start.row + 1}, kolonne {selected.start.col + 1}</small></div>
-      <label className="clue-editor">Ledetråd<input aria-label="Tekstledetråd til valgt ord" value={clues[selected.id] ?? ""} onChange={event => setClues(current => ({ ...current, [selected.id]: event.target.value }))} placeholder="Brug ordbogens ledetråd" /></label>
-      <details className="suggestion-help"><summary>Om forslagene</summary><p className="helper">Hvert vist ord er afprøvet mod alle ord med ledetråd og de nuværende bogstaver. Samme ord bruges højst én gang.</p></details>
-      <div className="suggestion-status" role="status">{searchErrors.length || !searchLayout.words.some(word => word.id === selectedId) ? "Tilføj en ledetråd til ordet for at se forslag." : progress.done ? (progress.checked < progress.total ? `Viser de første ${suggestions.length} mulige ord.` : `${suggestions.length} mulige ord fundet.`) : `Undersøger ord … ${progress.checked}${progress.total ? ` / ${progress.total}` : ""}`} {progress.uncertain > 0 && `${progress.uncertain} kunne ikke afgøres inden for beregningsgrænsen.`}</div>
+      <div className="suggestion-status-row"><div className="suggestion-status" role="status">{searchErrors.length || !searchLayout.words.some(word => word.id === selectedId) ? "Tilføj en ledetråd til ordet for at se forslag." : progress.done ? (progress.checked < progress.total ? `Viser de første ${suggestions.length} mulige ord.` : `${suggestions.length} mulige ord fundet.`) : `Undersøger ord … ${progress.checked}${progress.total ? ` / ${progress.total}` : ""}`} {progress.uncertain > 0 && `${progress.uncertain} kunne ikke afgøres inden for beregningsgrænsen.`}</div><div className="suggestion-help"><span className="info-tip"><button type="button" aria-label="Om ordforslagene" aria-describedby="suggestions-help">i</button><span id="suggestions-help" role="tooltip">Hvert vist ord er afprøvet mod alle ord med ledetråd og de nuværende bogstaver. Samme ord bruges højst én gang.</span></span></div></div>
       <label className="suggestion-sort">Sortér efter<select aria-label="Sortér ordforslag" value={suggestionSort} onChange={event => setSuggestionSort(event.target.value as "score" | "alphabetical")}><option value="score">Højeste kildescore</option><option value="alphabetical">Alfabetisk</option></select></label>
       <label className="unique-words-toggle"><input type="checkbox" checked={showEachWordOnce} onChange={event => setShowEachWordOnce(event.target.checked)} />Vis hvert ord én gang</label>
-      <div className={`suggestion-list${showEachWordOnce ? " unique-words" : ""}`}>{showEachWordOnce ? sortedSuggestions.map(({ entry, clues }) => <div className="suggestion-word" key={entry.word}><strong>{entry.word}</strong><small data-tooltip="Ordets højeste kildescore">{wordScores.get(entry.word) ?? 0} point</small><div className="suggestion-clues">{clues.map(({ clue, score }) => <button key={clue} onClick={() => applyWord(entry.word, clue)}>{clue}<small data-tooltip="Ledetrådens kildescore">{score} point</small><b>+</b></button>)}</div></div>) : sortedSuggestionClues.map(({ entry, clue, score }) => <button key={`${entry.word}:${clue}`} onClick={() => applyWord(entry.word, clue)}><strong>{entry.word}</strong><span>{clue}</span><small data-tooltip="Ledetrådens kildescore">{score} point</small><b>+</b></button>)}</div>
+      <div className={`suggestion-list${showEachWordOnce ? " unique-words" : ""}`}>{showEachWordOnce ? sortedSuggestions.map(({ entry, clues }) => <div className="suggestion-word" key={entry.word}><strong>{entry.word}</strong><button type="button" className="force-word" aria-label={`${forcedWords.some(item => item.word === entry.word) ? "Fjern fastgørelse af" : "Fastgør"} ${entry.word}`} title={forcedWords.some(item => item.word === entry.word) ? "Fjern fastgørelse" : "Fastgør ord"} aria-pressed={forcedWords.some(item => item.word === entry.word)} onClick={() => setForcedWords(current => current.some(item => item.word === entry.word) ? current.filter(item => item.word !== entry.word) : [...current, entry])}><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6l-1 5 3 3v2H7v-2l3-3-1-5zM12 13v8" /></svg></button><small>{wordScores.get(entry.word) ?? 0} point</small><div className="suggestion-clues">{clues.map(({ clue, score }) => <button key={clue} onClick={() => applyWord(entry.word, clue)}>{clue}<small>{score} point</small><b>+</b></button>)}</div></div>) : sortedSuggestionClues.map(({ entry, clue, score }) => <div className="forced-suggestion" key={`${entry.word}:${clue}`}><button onClick={() => applyWord(entry.word, clue)}><strong>{entry.word}</strong><span>{clue}</span><small>{score} point</small><b>+</b></button><button type="button" className="force-word" aria-label={`${forcedWords.some(item => item.word === entry.word) ? "Fjern fastgørelse af" : "Fastgør"} ${entry.word}`} title={forcedWords.some(item => item.word === entry.word) ? "Fjern fastgørelse" : "Fastgør ord"} aria-pressed={forcedWords.some(item => item.word === entry.word)} onClick={() => setForcedWords(current => current.some(item => item.word === entry.word) ? current.filter(item => item.word !== entry.word) : [...current, entry])}><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6l-1 5 3 3v2H7v-2l3-3-1-5zM12 13v8" /></svg></button></div>)}</div>
       {progress.done && suggestions.length === 0 && <p className="empty">Ingen bekræftede muligheder. Prøv at ændre eller fjerne bogstaver.</p>}
       <button className="subtle clear-word" onClick={() => { const next = { ...letters }; wordCells(selected).forEach(cell => delete next[keyOf(cell.row, cell.col)]); updateLetters(next); }}>Ryd det valgte ord</button></> : <p>Vælg et ord i feltet.</p>}
     </aside></div>}

@@ -2,8 +2,8 @@ import { createFillCache, fillLayout } from "./fillLayout";
 import { indexWordScores, isValidAnswerSpelling, type DictionaryEntry } from "./dictionary";
 import { answerLetters, fitsBreaks, wordCells, type GridLayout } from "./layout";
 
-self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; selected?: string; checkOnly?: boolean; knownSolutions?: { answers: Record<string, DictionaryEntry> }[]; unsatisfiableCandidates?: string[] }>) => {
-  const { layout, entries, letters, selected, checkOnly, knownSolutions = [], unsatisfiableCandidates = [] } = event.data;
+self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; selected?: string; checkOnly?: boolean; requiredWords?: string[]; knownSolutions?: { answers: Record<string, DictionaryEntry> }[]; unsatisfiableCandidates?: string[] }>) => {
+  const { layout, entries, letters, selected, checkOnly, requiredWords = [], knownSolutions = [], unsatisfiableCandidates = [] } = event.data;
   let lastUpdate = 0;
   const report = (data: object, force = false) => {
     const now = Date.now();
@@ -12,7 +12,7 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
   if (!selected) {
     const mode = checkOnly ? "check" : "grid";
     let latest: object = { mode, nodes: 0, solutions: 0, bestScore: null };
-    const result = fillLayout(layout, entries, 100000, letters, !checkOnly, progress => { latest = { mode, ...progress }; report(latest); });
+    const result = fillLayout(layout, entries, 100000, letters, !checkOnly, progress => { latest = { mode, ...progress }; report(latest); }, undefined, requiredWords);
     report(latest, true);
     self.postMessage(checkOnly
       ? { type: "checked", status: result.status, errors: result.status === "invalid" ? result.errors : undefined, searchStats: latest }
@@ -23,6 +23,7 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
   if (!slot) return;
   const cells = wordCells(slot);
   const compatibleSolutions = knownSolutions.filter(solution => {
+    if (!requiredWords.every(word => Object.values(solution.answers).some(entry => entry.word === word))) return false;
     const assignments = new Map<string, string>();
     for (const word of layout.words) {
       const answer = solution.answers[word.id]?.word;
@@ -55,7 +56,7 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
     const fixed = { ...letters };
     cells.forEach((cell, i) => { fixed[`${cell.row},${cell.col}`] = answerLetters(entry.word)[i]; });
     attemptNodes = 0;
-    const result = fillLayout(layout, entries, 10000, fixed, false, progress => { attemptNodes = progress.nodes; report({ mode: "word", checked, total: candidates.length, uncertain, nodes: attemptNodes }); }, cache);
+    const result = fillLayout(layout, entries, 10000, fixed, false, progress => { attemptNodes = progress.nodes; report({ mode: "word", checked, total: candidates.length, uncertain, nodes: attemptNodes }); }, cache, requiredWords);
     checked++;
     if (result.status === "invalid") { self.postMessage({ ...result, searchStats: { checked, total: candidates.length, uncertain, nodes: attemptNodes } }); return; }
     if (result.status === "limit") uncertain++;

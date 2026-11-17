@@ -1,4 +1,4 @@
-# Design
+﻿# Design
 
 Record approved product direction and user-facing decisions here. Keep proposals separate from confirmed decisions.
 
@@ -21,7 +21,7 @@ Krydsværk generates and plays Danish-style crosswords, with clues in the grid. 
 
 ## Implemented layout scope
 
-- The editor generates connected, varied templates from balanced, long-run and staggered seed families for 9 × 9, 11 × 11 and 13 × 13 grids. Layouts include longer answer slots, varied 2 × 1 and 1 × 2 clue areas, and black cells. Designers can request a rectangular image area and prefer hyphenated or multiword answers when the selected autofill dictionaries contain a fitting spelling. Player puzzle generation remains on its separate curated template path.
+- The editor generates connected, varied templates from balanced, long-run and staggered seed families for 9 × 9, 11 × 11 and 13 × 13 grids. Layouts include longer answer slots, varied 2 × 1 and 1 × 2 clue areas, and black cells. Designers can request a rectangular image area, let the generator choose hyphenated or multiword answers automatically, or require one to four such answers when the selected autofill dictionaries contain fitting spellings. Player puzzle generation remains on its separate curated template path.
 - The designer's new-grid action checks varied layout candidates with the same complete-fill solver and selected autofill dictionaries. It accepts only a candidate with a confirmed full fill; candidates whose bounded solver search is inconclusive are not accepted. Generation runs in a worker and preserves the current grid if it cannot confirm a candidate.
 - The layout model supports rectangular clue and image areas. Designers drag across grid cells to mark an image area of any size, choose a bundled illustration or upload an image, and drag within the placed image to adjust its crop.
 - Edited layouts may contain separate groups of words without crossings between them. Each word still needs a valid clue, and all letter cells must belong to a word.
@@ -31,3 +31,4 @@ Krydsværk generates and plays Danish-style crosswords, with clues in the grid. 
 
 - Select a horizontal or vertical slot and see words matching its length and current letters. A displayed suggestion must have a verified complete solution for the current grid. Search-limited candidates are reported as uncertain. Designers can check whether the whole grid has a fill without inserting its answers.
 - The editor starts from a generated template and supports manual letter entry, inserting suggestions, and editing cell types through a toolbar. It derives slots and up to two outward-facing arrows per clue area; rectangular clue areas, dark blocks and directional separators within multi-word answers are supported. Invalid intermediate layouts highlight affected cells and cannot be searched or published. Designers can autofill one word, fill the whole grid, or check whether a complete fill exists without inserting answers. The designer can set per-word clues and publish one completed puzzle locally to the player page.
+

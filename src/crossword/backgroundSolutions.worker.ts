@@ -3,8 +3,8 @@ import { indexWordScores, isValidAnswerSpelling, type DictionaryEntry } from "./
 import { answerLetters, fitsBreaks, wordCells, type GridLayout } from "./layout";
 import { nextSuggestionIndex } from "./suggestionOrder";
 
-self.onmessage = async (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; knownSolutions?: Record<string, DictionaryEntry>[] }>) => {
-  const { layout, entries, letters, knownSolutions = [] } = event.data;
+self.onmessage = async (event: MessageEvent<{ layout: GridLayout; entries: DictionaryEntry[]; letters: Record<string, string>; requiredWords?: string[]; knownSolutions?: Record<string, DictionaryEntry>[] }>) => {
+  const { layout, entries, letters, requiredWords = [], knownSolutions = [] } = event.data;
   const cache = createFillCache(entries, new Set(layout.words.map(word => word.length)));
   const scores = indexWordScores(entries);
   const known = layout.words.map(() => new Set<string>());
@@ -43,8 +43,9 @@ self.onmessage = async (event: MessageEvent<{ layout: GridLayout; entries: Dicti
     }
     if (slot.cursor < slot.candidates.length) {
       const initials = new Set([...known[index]].map(word => answerLetters(word)[0]));
-      const next = nextSuggestionIndex(slot.candidates, slot.cursor, initials, slot.firstLetterFixed);
-      [slot.candidates[slot.cursor], slot.candidates[next]] = [slot.candidates[next], slot.candidates[slot.cursor]];
+      const next = nextSuggestionIndex(slot.candidates, slot.cursor, initials, slot.firstLetterFixed,
+        (a, b) => (scores.get(a.word) ?? 0) === (scores.get(b.word) ?? 0));
+      if (next !== slot.cursor) slot.candidates.splice(slot.cursor, 0, slot.candidates.splice(next, 1)[0]);
     }
     let skipped = 0;
     while (slot.cursor < slot.candidates.length && known[index].has(slot.candidates[slot.cursor].word) && skipped < 100) { slot.cursor++; skipped++; }
@@ -52,7 +53,7 @@ self.onmessage = async (event: MessageEvent<{ layout: GridLayout; entries: Dicti
       const entry = slot.candidates[slot.cursor++];
       const fixed = { ...letters };
       slot.cells.forEach((cell, i) => { fixed[`${cell.row},${cell.col}`] = answerLetters(entry.word)[i]; });
-      const result = fillLayout(layout, entries, slot.budget, fixed, false, undefined, cache);
+      const result = fillLayout(layout, entries, slot.budget, fixed, false, undefined, cache, requiredWords);
       if (result.status === "invalid") { self.postMessage({ type: "done", reason: "invalid" }); return; }
       if (result.status === "limit") slot.deferred.push(entry);
       if (result.status === "solved") { remember(result.answers); self.postMessage({ type: "solution", answers: result.answers }); }
