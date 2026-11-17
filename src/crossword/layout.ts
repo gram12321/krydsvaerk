@@ -184,3 +184,14 @@ export function layoutIssues(layout: GridLayout): LayoutIssue[] {
 export function validateLayout(layout: GridLayout): string[] {
   return layoutIssues(layout).map(issue => issue.message);
 }
+
+/** Only cued words participate while a designer is still building the grid. */
+export function solverLayout(layout: GridLayout): GridLayout {
+  const cueIds = new Set([...layout.clues, ...layout.images].map(area => area.id));
+  return { ...layout, words: layout.words.filter(word => cueIds.has(word.clueId)) };
+}
+
+export function validateSolverLayout(layout: GridLayout): string[] {
+  return validateLayout(solverLayout(layout)).filter(error =>
+    !error.startsWith("Empty cell at ") && !/^Clue .* must have one or two words$/.test(error) && !error.startsWith("Unused arrow at "));
+}

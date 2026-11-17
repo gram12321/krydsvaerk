@@ -20,6 +20,7 @@
 .image-area-tool{touch-action:none;user-select:none}.edit-tile.image-selection{background:#d0e2b9!important;box-shadow:inset 0 0 0 2px #537c52}.editor-image-draggable{cursor:grab;touch-action:none}.editor-image-draggable:active{cursor:grabbing}.editor-image img{pointer-events:none;user-select:none}
 .direction-control{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:12px;font-size:12px;font-weight:700}.direction-control span{margin-right:5px}.direction-control button{border:1px solid #cbd6c9;border-radius:3px;background:#fff;color:#345a40;padding:8px 10px}.direction-control button[aria-pressed=true]{background:#d7e8d2;border-color:#587f60;box-shadow:inset 0 0 0 1px #587f60}
 .autofill-progress{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#718175;font-size:12px;line-height:1.5;margin:8px 0}
+.background-finder{color:#718175;font-size:12px;line-height:1.5;margin:8px 0}
 
 .editor-image{position:relative}.image-cue-target,.image-cue-button{position:absolute;z-index:2;display:grid;place-items:center;width:25px;height:25px;padding:0;transform:translate(-50%,-50%);border:1px solid #314f3d;border-radius:50%;background:#fffdf1e8;color:#244b37;font-size:19px;font-weight:700;line-height:1;box-shadow:0 1px 4px #1b2c2455;cursor:pointer}.image-cue-target:hover,.image-cue-target.active,.image-cue-button:hover,.image-cue-button.clue-active{background:#d6e7bd;box-shadow:0 0 0 2px #426a4a}
 .dictionary-controls,.custom-word-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0}.dictionary-detail{display:grid;gap:10px;margin-top:16px;max-width:700px}.dictionary-detail label{display:flex;align-items:center;gap:8px}.dictionary-editor input:not([type=checkbox]),.dictionary-editor select{border:1px solid #d5ded3;padding:9px;max-width:100%}.dictionary-detail button,.dictionary-controls button{width:fit-content;padding:8px}.custom-word-list{max-height:320px;overflow:auto}.custom-word-row{border-top:1px solid #d5ded3;padding-top:8px}.custom-word-row span{flex:1;min-width:160px}.dictionary-detail textarea{margin:0}
@@ -35,11 +36,13 @@
 .designer-tabs{display:flex;gap:6px;border-bottom:1px solid #dce2d8;margin:0 5%;padding:0 0 10px}.designer-tabs button{display:flex;align-items:center;gap:8px;border:0;background:transparent;color:#607563;padding:10px 14px;border-radius:4px;font-weight:700}.designer-tabs button[aria-current=page]{background:#e4ede0;color:#294a37}.designer-tabs button span{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:20px;background:#d3dfcf;font-size:11px}.dictionary-manager{background:#fffefa;border:1px solid #e2e7de;border-radius:6px;padding:clamp(20px,4vw,40px);margin-top:30px}.dictionary-manager-header{display:flex;justify-content:space-between;align-items:end;gap:30px;padding-bottom:25px;border-bottom:1px solid #e5e9e1}.dictionary-manager-header h2{font:400 34px 'DM Serif Display',serif;margin:6px 0}.dictionary-manager-header p,.dictionary-workspace-top p,.dictionary-entry-add p,.dictionary-entries-heading p{font-size:13px;line-height:1.55;color:#718175}.dictionary-create{min-width:min(100%,370px)}.dictionary-create>label,.dictionary-name-edit{display:grid;gap:6px;font-size:12px;font-weight:700;color:#516957}.dictionary-create>div{display:flex;gap:8px;margin-top:6px}.dictionary-create input,.dictionary-name-edit input,.dictionary-entry input,.dictionary-entry-add textarea{border:1px solid #d5ded3;background:#fff;padding:10px 12px;color:#294a37;border-radius:3px}.dictionary-create input{flex:1;min-width:0}.dictionary-create button,.dictionary-entry-add>button,.dictionary-entry button:not(.text-button){border:1px solid #2d503b;border-radius:3px;background:#2d503b;color:white;font-weight:700;padding:9px 13px}.dictionary-manager-body{display:grid;grid-template-columns:245px minmax(0,1fr);gap:26px;padding-top:24px;align-items:start}.dictionary-list{border:1px solid #e2e7de;border-radius:4px;background:#f8f9f4;padding:8px}.dictionary-list-heading{display:flex;justify-content:space-between;padding:8px 9px 12px;color:#8a988b;font-size:10px;letter-spacing:.12em;font-weight:700}.dictionary-list-heading strong{color:#607563}.dictionary-list>button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:11px 10px;border:0;border-radius:3px;background:transparent;color:#294a37}.dictionary-list>button.active{background:#e4ede0;box-shadow:inset 3px 0 #648368}.dictionary-list>button span{font-weight:700;overflow:hidden;text-overflow:ellipsis}.dictionary-list>button small{white-space:nowrap;color:#829084}.dictionary-list>p{padding:10px;font-size:12px;color:#718175}.dictionary-workspace{min-width:0}.dictionary-workspace-top{display:grid;grid-template-columns:minmax(150px,1fr) minmax(140px,220px) auto;gap:16px;align-items:end;padding-bottom:18px;border-bottom:1px solid #e5e9e1}.dictionary-workspace-top h3{font:400 27px 'DM Serif Display',serif;margin:5px 0}.dictionary-name-edit input{font-size:13px}.danger-button{border:1px solid #dfc8bd;background:#fff9f5;color:#9b573b;padding:9px 11px;border-radius:3px;font-size:12px;font-weight:700}.dictionary-entry-add{display:grid;grid-template-columns:minmax(190px,.8fr) minmax(240px,1.2fr) auto;gap:12px;align-items:end;padding:19px 0;border-bottom:1px solid #e5e9e1}.dictionary-entry-add h4,.dictionary-entries-heading h4{font-size:14px;margin:0 0 4px;color:#355541}.dictionary-entry-add code{font-size:12px;color:#355541}.dictionary-entry-add textarea{width:100%;resize:vertical;min-height:72px}.dictionary-entry-add>button{white-space:nowrap}.dictionary-entries-heading{display:flex;justify-content:space-between;align-items:center;padding:17px 0 10px}.dictionary-entries-heading>span{display:grid;place-items:center;border-radius:20px;background:#edf3e9;min-width:28px;height:28px;font-size:12px;font-weight:700;color:#526e57}.dictionary-entry-list{max-height:430px;overflow:auto;border-top:1px solid #e5e9e1}.dictionary-entry{display:flex;align-items:center;gap:8px;min-height:48px;padding:7px 4px;border-bottom:1px solid #e9ece5}.dictionary-entry>span{display:flex;align-items:baseline;gap:10px;flex:1;min-width:0}.dictionary-entry>span strong{min-width:110px;letter-spacing:.03em;color:#355541}.dictionary-entry>span span{overflow-wrap:anywhere;font-size:13px;color:#718175}.dictionary-entry input{flex:1;min-width:160px}.dictionary-entry button.text-button{border:0;background:transparent;color:#5e7662;padding:7px;font-size:12px;text-decoration:underline}.dictionary-entry button.remove{color:#9b573b}.dictionary-empty,.dictionary-no-selection{padding:24px;color:#718175;font-size:13px}.dictionary-message{padding-top:10px;font-size:12px;color:#607563}.dictionary-no-selection{align-self:center;padding:45px}.dictionary-no-selection h3{font:400 23px 'DM Serif Display',serif;margin-bottom:7px}.dictionary-no-selection p{font-size:13px;color:#718175}
 @media(max-width:850px){.dictionary-manager-header{align-items:stretch;flex-direction:column}.dictionary-create{min-width:0}.dictionary-manager-body{grid-template-columns:200px minmax(0,1fr);gap:14px}.dictionary-workspace-top{grid-template-columns:1fr 1fr}.dictionary-workspace-top .danger-button{grid-column:2;justify-self:start}.dictionary-entry-add{grid-template-columns:1fr 1fr}.dictionary-entry-add>div{grid-column:1/-1}.dictionary-entry-add>button{justify-self:start}}
 @media(max-width:600px){.designer-tabs{margin:0 4%;}.dictionary-manager{padding:16px;margin-top:18px}.dictionary-manager-body{grid-template-columns:1fr}.dictionary-list{display:flex;gap:5px;overflow:auto}.dictionary-list-heading{display:none}.dictionary-list>button{width:auto;min-width:max-content;background:#f2f5ef}.dictionary-workspace-top{grid-template-columns:1fr}.dictionary-workspace-top .danger-button{grid-column:auto}.dictionary-entry-add{grid-template-columns:1fr}.dictionary-entry-add>div{grid-column:auto}.dictionary-entry-add>button{justify-self:stretch}.dictionary-entry>span strong{min-width:75px}.dictionary-entry{gap:4px}.dictionary-entry button.text-button{padding:6px 3px}}
+.dictionary-entry-add{grid-template-columns:minmax(150px,.7fr) minmax(0,1.8fr);align-items:start;gap:24px}.dictionary-entry-form{display:grid;gap:10px;min-width:0}.dictionary-format{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:#516957}.dictionary-format select{max-width:100%;border:1px solid #d5ded3;background:#fff;padding:7px 10px;color:#294a37;border-radius:3px}.dictionary-entry-add .dictionary-format-example{margin:0}.dictionary-entry-actions-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px}.dictionary-both-directions{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#355541}.dictionary-both-directions input{margin:3px 0 0;flex:none}.dictionary-both-directions small{display:block;margin-top:3px;color:#718175;line-height:1.4}.dictionary-entry-actions-bottom button{flex:none;border:1px solid #2d503b;border-radius:3px;background:#2d503b;color:white;font-weight:700;padding:9px 16px;white-space:nowrap}@media(max-width:850px){.dictionary-entry-add{grid-template-columns:1fr;gap:12px}.dictionary-entry-add>div{grid-column:auto}}@media(max-width:600px){.dictionary-entry-actions-bottom{align-items:stretch;flex-direction:column}.dictionary-entry-actions-bottom button{width:100%}}
 
 /* Keep crossword setup together below the page title. */
 .editor-title{justify-content:flex-start;margin-bottom:24px}.designer-control-bar{display:grid;grid-template-columns:minmax(270px,1fr) minmax(340px,1.4fr) auto;gap:14px;padding:14px 16px;margin:0 0 28px;background:#fffefa;border:1px solid #e2e7de;border-radius:5px;align-items:center}.designer-control-group{min-width:0;padding:2px 14px 2px 0;border-right:1px solid #e5e9e1}.designer-control-group.publish-setup{border-right:0;padding-right:0}.designer-control-label{display:block;margin-bottom:7px;color:#a0785b;font-size:9px;letter-spacing:.13em;font-weight:700}.designer-control-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.designer-control-row label{font-size:11px;color:#607563;white-space:nowrap}.designer-control-row input,.designer-control-row select{min-width:0;max-width:190px;height:38px;padding:7px 9px;border:1px solid #d5ded3;border-radius:3px;background:#fff;color:#294a37;font-size:12px}.designer-control-row input{flex:1}.designer-control-row select[aria-label="Åbn gemt kladde"]{max-width:170px}.designer-control-row button{height:38px;padding:0 12px;border-radius:3px;font-size:12px;font-weight:700;white-space:nowrap}.designer-control-row .secondary-action{border:1px solid #d5ded3;background:#fff;color:#355541}.designer-control-row .primary-action{border:1px solid #2d503b;background:#2d503b;color:#fff}.designer-control-status{grid-column:1/-1;min-height:0;font-size:11px;line-height:1.3;color:#718175}.designer-control-status:empty{display:none}
 @media(max-width:1050px){.designer-control-bar{grid-template-columns:1fr 1.3fr}.designer-control-group.publish-setup{grid-column:1/-1;border-top:1px solid #e5e9e1;padding:10px 0 0}.designer-control-group.draft-setup{border-right:0;padding-right:0}}
 @media(max-width:650px){.designer-control-bar{grid-template-columns:1fr;gap:10px;padding:12px}.designer-control-group,.designer-control-group.draft-setup,.designer-control-group.publish-setup{grid-column:auto;border-right:0;border-top:1px solid #e5e9e1;padding:10px 0 0}.designer-control-group:first-child{border-top:0;padding-top:0}.designer-control-row>*{flex:1}.designer-control-row label{flex:0 0 auto}.designer-control-row select[aria-label="Åbn gemt kladde"]{max-width:none}.designer-control-row button{flex:0 0 auto}}
+.panel-heading>div:last-child{display:flex;justify-content:flex-end;flex-wrap:wrap}.designer-generator-options{display:flex;align-items:center;gap:7px 14px;flex-wrap:wrap;margin-top:9px;color:#607563;font-size:11px}.designer-generator-options>label{display:flex;align-items:center;gap:5px;white-space:nowrap}.designer-generator-options input[type="checkbox"]{margin:0;accent-color:#355a40}.designer-image-size{display:flex;gap:7px}.designer-image-size label{display:flex;align-items:center;gap:5px}.designer-image-size select{height:30px;padding:4px 6px;border:1px solid #d5ded3;border-radius:3px;background:#fff;color:#294a37;font-size:11px}
 
 /* Full-width, consistent designer tab bar */
 .designer-tabs{width:100%;margin:0 0 18px;padding:0;gap:0;border-bottom:1px solid #dce2d8}.designer-tabs button{flex:1;justify-content:center;min-height:46px;border-radius:4px 4px 0 0;border-bottom:3px solid transparent;padding:11px 16px}.designer-tabs button[aria-current=page]{background:#e4ede0;color:#294a37;border-bottom-color:#648368}.designer-tabs button:hover:not([aria-current=page]){background:#edf2e9;color:#355541}
@@ -47,6 +50,7 @@
 
 .dictionary-entry{display:grid;grid-template-columns:minmax(110px,1fr) auto auto;gap:4px 8px}.dictionary-entry>span{grid-column:1;grid-row:1}.dictionary-entry-actions{grid-column:1/-1;grid-row:2;display:flex;align-items:center;gap:7px;padding:2px 0 3px}.dictionary-entry-actions select{min-width:0;max-width:220px;height:30px;padding:4px 8px;border:1px solid #d5ded3;border-radius:3px;background:#fff;color:#355541;font-size:11px}.dictionary-entry button.text-button:disabled{opacity:.42;text-decoration:none;cursor:not-allowed}.dictionary-entry-actions button.text-button{padding:5px 3px}.dictionary-entry input{grid-column:1}.dictionary-entry:has(>input){grid-template-columns:minmax(160px,1fr) auto auto}.dictionary-entry:has(>input)>.dictionary-entry-actions{display:none}
 @media(max-width:600px){.dictionary-entry{grid-template-columns:minmax(90px,1fr) auto auto}.dictionary-entry-actions{gap:5px}.dictionary-entry-actions select{max-width:160px}.dictionary-entry>span strong{min-width:70px}}
+.dictionary-entry-list[role=table]{display:block}.dictionary-entry-header,.dictionary-entry-list>.dictionary-entry{display:grid;grid-template-columns:minmax(110px,1fr) minmax(110px,1fr) auto auto;align-items:center;gap:8px;padding:8px 4px}.dictionary-entry-header{position:sticky;top:0;z-index:1;background:#f5f7f1;border-bottom:1px solid #dfe6dc}.dictionary-entry-header button{border:0;background:transparent;padding:5px 4px;text-align:left;color:#526e57;font-size:12px;font-weight:700;cursor:pointer}.dictionary-entry-header>span{grid-column:3/-1}.dictionary-entry-list>.dictionary-entry{grid-template-columns:minmax(110px,1fr) minmax(110px,1fr) auto auto;min-height:46px}.dictionary-entry-clue{font-size:13px;color:#718175;overflow-wrap:anywhere}.dictionary-entry-word{font-size:13px;letter-spacing:.03em;color:#355541;overflow-wrap:anywhere}.dictionary-entry-list>.dictionary-entry .dictionary-entry-actions{grid-column:1/-1;grid-row:2}.dictionary-entry-list>.dictionary-entry:has(>input){grid-template-columns:minmax(120px,1fr) auto auto}.dictionary-entry-list>.dictionary-entry:has(>input) input{grid-column:1/-1;min-width:0}.dictionary-entry-list>.dictionary-entry:has(>input)>.dictionary-entry-actions{display:none}@media(max-width:600px){.dictionary-entry-header,.dictionary-entry-list>.dictionary-entry{grid-template-columns:minmax(80px,1fr) minmax(80px,1fr) auto auto;gap:5px}.dictionary-entry-header button{font-size:11px;padding-inline:2px}.dictionary-entry-list>.dictionary-entry{padding-inline:2px}.dictionary-entry-list>.dictionary-entry button.text-button{padding-inline:3px}}
 
 .editor-clue.clue-horizontal button{container-type:size}
 
@@ -56,3 +60,130 @@
 
 .builtin-dictionary-settings{margin:0 0 24px;padding:18px;background:#fffefa;border:1px solid #e2e7de;border-radius:4px}.builtin-dictionary-options{min-width:0;margin:0;padding:14px;border:1px solid #dfe5dc}.builtin-dictionary-options legend{padding:0 6px;color:#294a37;font-size:13px;font-weight:700}.builtin-dictionary-options>p{margin:0 0 12px;color:#718175;font-size:11px;line-height:1.5}.builtin-dictionary-options>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 16px}.builtin-dictionary-options>div label{display:flex;align-items:center;gap:8px;margin:0;color:#435b49;font-size:12px;line-height:1.4}.builtin-dictionary-options input{accent-color:#2d503b}.dictionary-content .builtin-dictionary-options{margin-bottom:18px;padding:12px}.dictionary-content .builtin-dictionary-options>div{grid-template-columns:1fr}.dictionary-content .builtin-dictionary-options>div label{display:flex;margin:0;font-size:11px}
 @media(max-width:600px){.builtin-dictionary-options>div{grid-template-columns:1fr}.builtin-dictionary-settings{padding:12px}}
+.shared-dictionary-panel{display:grid;grid-template-columns:minmax(200px,.65fr) minmax(0,1.35fr);gap:18px;padding:22px 0;border-bottom:1px solid #e5e9e1}.shared-dictionary-panel h3{font:400 24px 'DM Serif Display',serif;margin:5px 0}.shared-dictionary-panel p,.shared-dictionary-card small{font-size:12px;line-height:1.5;color:#718175}.shared-dictionary-list{display:grid;gap:8px}.shared-dictionary-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#f7f8f3;border:1px solid #e2e7de}.shared-dictionary-card>div{display:grid;gap:3px}.shared-dictionary-card button,.share-own-dictionary button{border:1px solid #2d503b;border-radius:3px;background:#2d503b;color:#fff;padding:8px 11px;font-weight:700}.shared-dictionary-card button.text-button{background:transparent;color:#5e7662;text-decoration:underline;border:0}.shared-dictionary-empty{font-size:13px;color:#718175}.share-own-dictionary{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#eef3e9;color:#355541;font-size:13px}.shared-readonly .dictionary-name-edit,.shared-readonly>.dictionary-workspace-top>.danger-button,.shared-readonly .dictionary-entry-add,.shared-readonly .dictionary-entry-actions,.shared-readonly .dictionary-entry button.text-button{display:none!important}.shared-readonly .dictionary-entry{grid-template-columns:minmax(0,1fr) minmax(100px,.5fr)}
+@media(max-width:700px){.shared-dictionary-panel{grid-template-columns:1fr}.share-own-dictionary{align-items:stretch;flex-direction:column}}
+.shared-use-toggle{display:flex;align-items:center;gap:5px;color:#536b58;font-size:11px;white-space:nowrap}.shared-use-toggle input{accent-color:#2d503b}.shared-dictionary-card{flex-wrap:wrap}
+
+.edit-clue-area{background:#e2e9dd;pointer-events:none}.edit-clue-cell{background:transparent;z-index:1}
+
+/* Crossword workspace */
+.editor-board-panel .panel-heading{align-items:flex-start;gap:20px;padding-bottom:20px;margin-bottom:18px;border-bottom:1px solid #e7ebe3}
+.editor-board-panel .panel-heading h2{margin-bottom:0}
+.editor-board-panel .panel-heading>div:last-child{gap:6px;align-items:center}
+.editor-board-panel .panel-heading .subtle{border:1px solid #dce5d9;border-radius:4px;background:#fff;color:#496b50;padding:8px 10px;text-decoration:none;font-size:11px}
+.editor-board-panel .panel-heading .subtle:hover{background:#eff5ec;border-color:#a8bca6}
+.board-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 16px;background:#f5f8f1;border:1px solid #e5ebe0;border-radius:5px}
+.board-toolbar .layout-tool{margin:0;flex:1 1 400px;gap:8px}
+.board-toolbar .direction-control{margin:0;gap:5px}
+.board-toolbar .tool-name{flex-basis:100%;padding-left:0;color:#718175}
+.editor-board-panel>.helper{margin:12px 0;color:#718175;line-height:1.5}
+.background-finder{display:grid;gap:10px;width:min(100%,420px);margin:14px 0 18px;padding:13px 15px;background:#f7f9f4;border:1px solid #dfe9dc;border-radius:5px;color:#355541}
+.background-finder-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.background-finder-heading>strong{font-size:12px;letter-spacing:.015em}
+.background-finder-state{display:inline-flex;align-items:center;gap:6px;color:#718175;font-size:10px;white-space:nowrap}
+.background-finder-state i{width:7px;height:7px;border-radius:50%;background:#8caa83}.background-finder-state.error i{background:#b26c4c}.background-finder-state.finished i{background:#a1ada0}
+.background-finder-metrics{display:grid;grid-template-columns:1fr 1fr;gap:14px}.background-finder-metrics>div{display:grid;gap:2px}.background-finder-metrics>div+div{border-left:1px solid #dde7db;padding-left:14px}.background-finder-metrics strong{font-size:19px;line-height:1.2;color:#294a37}.background-finder-metrics small{font-size:11px;font-weight:500;color:#8a988b}.background-finder-metrics span,.background-finder p{color:#718175;font-size:10px;line-height:1.4}.background-finder p{margin:0}
+@media(max-width:650px){.editor-board-panel .panel-heading{flex-wrap:wrap;gap:12px}.editor-board-panel .panel-heading>div:last-child{justify-content:flex-start}.board-toolbar{padding:12px;gap:12px}.board-toolbar .layout-tool{flex-basis:100%}.background-finder{width:100%}}
+.board-toolbar .layout-tool{display:grid;gap:10px;flex:1 1 100%}.board-tool-groups{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}.board-tool-group{display:grid;gap:6px}.board-tool-group>span{color:#718175;font-size:10px;font-weight:600;letter-spacing:.03em}.board-tool-group+.board-tool-group{border-left:1px solid #dce6d9;padding-left:16px}.board-tool-icon{width:23px;height:23px}.board-toolbar .tool-name{font-size:11px}.board-toolbar .direction-control{padding-top:2px}
+.board-action-buttons{display:flex;gap:5px;flex-wrap:wrap}.board-action-buttons button{min-height:42px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;border:1px solid #cbd6c9;border-radius:3px;background:#fff;color:#345a40;font-size:11px;white-space:nowrap}.board-action-buttons button:hover{background:#edf3e9;border-color:#a8bca6}.board-action-buttons svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.board-action-group{min-width:0}
+.background-finder{width:min(100%,580px);margin:18px 0 0}.background-finder-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:650px){.board-tool-groups{gap:12px}.board-tool-group+.board-tool-group{padding-left:12px}.background-finder{width:100%}.background-finder-metrics{gap:8px}.background-finder-metrics>div+div{padding-left:8px}}
+.editor-clue button .clue-suggestion-count{position:absolute;z-index:1;left:2px;bottom:2px;min-width:14px;height:13px;padding:1px 3px;border-radius:7px;background:#f7faf3;color:#4b6b52;box-shadow:0 0 0 1px #b8cbb5;font:700 9px/11px 'DM Sans',sans-serif;text-align:center;pointer-events:none}.editor-clue button .clue-suggestion-count.down{left:auto;right:2px;bottom:2px}.editor-clue button:has(.clue-suggestion-count) .editor-clue-text{bottom:15px}
+.image-suggestion-count{position:absolute;right:-5px;bottom:-5px;min-width:14px;height:14px;padding:1px 3px;border-radius:8px;background:#f7faf3;color:#31543b;box-shadow:0 0 0 1px #8daa8e;font:700 9px/12px 'DM Sans',sans-serif;pointer-events:none}
+.grid-count-toggle{display:flex;align-items:center;gap:7px;margin-top:2px;color:#496b50;font-size:11px;font-weight:600}.grid-count-toggle input{margin:0;accent-color:#355a40}.app-tooltip{position:fixed;z-index:9999;max-width:min(280px,calc(100vw - 16px));padding:7px 10px;border:1px solid #4f6d55;border-radius:5px;background:#294738;color:#fffefa;box-shadow:0 4px 14px #203a2a38;font:500 12px/1.4 'DM Sans',sans-serif;white-space:normal;overflow-wrap:anywhere;pointer-events:none}
+
+/* Compact designer workspace: setup above, editing beside the grid. */
+.editor-shell .editor-header{height:48px}
+.editor-shell .brand{font-size:23px}
+.editor-shell .editor-main{padding-top:20px;padding-bottom:28px}
+.editor-shell .editor-title{margin-bottom:16px;gap:12px}
+.editor-shell .editor-title h1{font-size:34px;line-height:1.1;margin:4px 0 6px}
+.editor-shell .editor-title p:not(.eyebrow){font-size:12px}
+.editor-shell .designer-tabs{margin-bottom:12px}
+.editor-shell .designer-tabs button{min-height:36px;padding:7px 12px}
+.designer-control-bar{grid-template-columns:auto minmax(220px,1fr) auto;gap:10px;padding:10px 12px;margin-bottom:16px;align-items:start}
+.designer-control-group{padding:0 10px 0 0}
+.designer-control-label{margin-bottom:5px;font-size:9px}
+.designer-control-row{gap:5px}
+.designer-control-row input,.designer-control-row select,.designer-control-row button{height:32px;font-size:11px}
+.designer-control-row button{padding:0 8px}
+.designer-control-row input{width:120px;max-width:160px}
+.designer-control-row select[aria-label="Åbn gemt kladde"]{max-width:140px}
+.grid-setup{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:410px}
+.grid-setup>.designer-control-label{flex-basis:100%;margin-bottom:0}
+.grid-setup .designer-control-row>label{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.generator-settings{font-size:11px;color:#607563}
+.generator-settings summary,.board-help summary,.suggestion-help summary{cursor:pointer;color:#607563;font-size:11px;line-height:1.5}
+.generator-settings[open]{flex-basis:100%}
+.generator-settings .designer-generator-options{margin-top:7px;gap:7px}
+.designer-generator-options>label{white-space:normal}
+.editor-workspace{gap:16px;grid-template-columns:minmax(0,1fr) 310px}
+.editor-board-panel,.suggestion-panel{padding:16px}
+.editor-board-panel .panel-heading{padding-bottom:0;margin-bottom:12px;border:0;gap:8px}
+.editor-board-panel .panel-heading>div,.suggestion-panel .panel-heading>div{display:flex;align-items:baseline;justify-content:flex-start;gap:10px}
+.panel-heading h2{font-size:23px;margin:0}
+.panel-heading span{font-size:9px;letter-spacing:.08em}
+.board-toolbar{display:grid;gap:8px;padding:9px;margin:0;background:#f5f8f1;border-color:#e5ebe0}
+.board-tool-groups{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.board-tool-group{display:block}
+.board-tool-group+.board-tool-group{padding-left:8px;border-color:#dce6d9}
+.layout-tool-buttons{gap:3px}
+.layout-tool-buttons button{width:34px;height:34px;padding:0}
+.board-tool-icon{width:21px;height:21px}
+.board-toolbar .direction-control{margin:0 0 0 auto;padding:0 0 0 8px;border-left:1px solid #dce6d9;gap:3px;flex-wrap:nowrap}
+.board-toolbar .direction-control button{width:34px;height:34px;padding:0;font-size:20px}
+.board-toolbar-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px 12px;padding-top:7px;border-top:1px solid #e2e8de}
+.board-toolbar .tool-name{flex-basis:auto;font-size:11px;color:#607563}
+.board-action-buttons{gap:4px}
+.board-action-buttons button{min-height:28px;padding:0 7px;font-size:10px;gap:4px;background:transparent;border-color:transparent}
+.board-action-buttons button:hover{background:#e7efdf;border-color:#cbd6c9}
+.board-action-buttons svg{width:15px;height:15px}
+.board-help{margin:6px 0 8px}
+.board-help .helper,.suggestion-help .helper{font-size:11px;padding:6px 0;line-height:1.5}
+.layout-status:empty{display:none}
+.suggestion-panel .panel-heading{margin-bottom:10px}
+.suggestion-panel .panel-heading>div{flex-wrap:wrap;gap:3px 8px}
+.suggestion-panel .panel-heading h2{font-size:22px}
+.suggestion-panel .dictionary-picker{margin:0 0 10px;padding:0 0 10px;gap:6px}
+.suggestion-panel .dictionary-picker select{padding:5px;font-size:12px}
+.suggestion-panel .dictionary-picker label:not(:first-child){font-size:10px}
+.suggestion-panel .selection-info{padding:10px 12px;gap:4px;margin:10px 0}
+.suggestion-panel .selection-info strong{font-size:22px}
+.suggestion-panel .selection-info small{font-size:11px}
+.suggestion-panel .clue-editor{margin:10px 0;font-size:11px}
+.suggestion-panel .clue-editor input{margin-top:4px;padding:7px;font-size:12px}
+.suggestion-status{margin:10px 0 8px;font-size:11px}
+.suggestion-sort{font-size:11px;gap:6px}
+.suggestion-sort select{padding:5px;font-size:11px}
+.unique-words-toggle{font-size:11px;margin:7px 0}
+.background-finder{margin-top:12px;padding:10px 12px;gap:8px}
+@media(max-width:1150px){
+  .designer-control-bar{grid-template-columns:minmax(0,1fr) auto}
+  .grid-setup{grid-column:1/-1;max-width:none;border-right:0;border-bottom:1px solid #e5e9e1;padding:0 0 8px}
+  .grid-setup>.designer-control-label{flex-basis:auto;margin-right:4px}
+  .designer-control-group.draft-setup{border-right:1px solid #e5e9e1;padding-right:10px}
+  .designer-control-group.publish-setup{grid-column:auto;border:0;padding:0}
+}
+@media(max-width:1000px){.editor-workspace{grid-template-columns:minmax(0,1fr) 280px;gap:12px}.editor-board-panel,.suggestion-panel{padding:12px}}
+@media(max-width:800px){.editor-workspace{grid-template-columns:minmax(0,1fr)}.suggestion-list{max-height:360px}}
+@media(max-width:650px){
+  .editor-shell .editor-main{padding:14px 4% 24px}
+  .editor-shell .editor-title h1{font-size:28px}
+  .designer-control-bar{grid-template-columns:1fr;gap:8px;padding:10px}
+  .designer-control-group,.designer-control-group.draft-setup,.designer-control-group.publish-setup{grid-column:auto;border:0;padding:0}
+  .grid-setup{padding-bottom:8px;border-bottom:1px solid #e5e9e1}
+  .designer-control-row input{max-width:none}
+  .designer-control-label{margin-bottom:4px}
+  .board-toolbar{padding:8px}
+  .board-tool-groups{gap:6px}
+  .board-tool-group+.board-tool-group{padding-left:6px}
+  .layout-tool-buttons button,.board-toolbar .direction-control button{width:36px;height:36px}
+  .board-toolbar .direction-control{padding-left:6px}
+  .board-toolbar-footer{align-items:flex-start}
+  .board-action-buttons button{min-height:34px}
+}
+@media(pointer:coarse){.layout-tool-buttons button,.board-toolbar .direction-control button{min-width:40px;min-height:40px}.board-action-buttons button{min-height:40px}}
+
+.designer-content{border:0;margin:0;padding:0;min-width:0}
+.board-loading{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;background:#e6e9df;color:#496b50;text-align:center;font-size:13px;line-height:1.5}
+.board-loading span{color:#718175;font-size:12px}

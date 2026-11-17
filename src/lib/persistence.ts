@@ -40,6 +40,7 @@ async function loadPersistedDataOnce(): Promise<PersistedData> {
   if (readError) throw readError;
 
   const data: PersistedData = Object.fromEntries((rows ?? []).map(row => [row.key, row.value]));
+  data.__user_id = session.user.id;
   const { data: publicCrosswords, error: publicReadError } = await supabase
     .from("published_crosswords")
     .select("id, name, puzzle")
