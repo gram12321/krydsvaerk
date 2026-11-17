@@ -1,5 +1,5 @@
 import { customEntryKey, parseCustomEntries, type CustomDictionary } from "./crossword/customDictionary";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { dictionary, type BuiltinDictionarySettings } from "./crossword/dictionary";
 import { BuiltinDictionaryOptions } from "./crossword/BuiltinDictionaryOptions";
@@ -10,6 +10,41 @@ import type { Direction, Placement, Puzzle } from "./crossword/generator";
 type Selection = { row: number; col: number; placementId: number };
 type Answers = Record<string, string>;
 const keyOf = (row: number, col: number) => `${row},${col}`;
+
+function ClueText({ clue }: { clue: string }) {
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const text = textRef.current;
+    const button = text?.parentElement;
+    if (!text || !button) return;
+    let frame = 0;
+    let disposed = false;
+    const fit = () => {
+      if (!button.clientWidth || !button.clientHeight) return;
+      const style = getComputedStyle(button);
+      const width = button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const height = button.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      let low = 8;
+      let high = 14;
+      for (let i = 0; i < 7; i++) {
+        const size = (low + high) / 2;
+        text.style.fontSize = `${size}px`;
+        if (text.scrollWidth <= width && text.scrollHeight <= height) low = size;
+        else high = size;
+      }
+      text.style.fontSize = `${low}px`;
+    };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(button);
+    schedule();
+    void document.fonts.ready.then(() => { if (!disposed) schedule(); });
+    return () => { disposed = true; observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [clue]);
+
+  return <span ref={textRef} className="clue-text">{clue}</span>;
+}
 
 function initialSelection(puzzle: Puzzle): Selection | null {
   const first = puzzle.placements[0];
@@ -231,18 +266,15 @@ export function Player({ published, library = [], preview = false, preferPublish
               const key = keyOf(r, c);
               if (cell.kind === "covered") return null;
               if (cell.kind === "block") return <div key={key} className="cell cell-dark" style={{ gridRow: r + 1, gridColumn: c + 1 }} aria-label="Sort felt" />;
-              if (cell.kind === "arrow") return <div key={key} className="cell cell-separator" style={{ gridRow: r + 1, gridColumn: c + 1 }} aria-label={cell.direction === "across" ? "Ordmellemrum, pil til højre" : "Ordmellemrum, pil ned"}>{cell.direction === "across" ? "→" : "↓"}</div>;
+              if (cell.kind === "arrow") return <div key={key} className="cell cell-separator" style={{ gridRow: r + 1, gridColumn: c + 1 }} aria-label="Ordmellemrum" />;
               if (cell.kind === "image") { const src = cell.illustration?.startsWith("data:") ? cell.illustration : cell.illustration?.startsWith("preset:") ? `/illustrations/${cell.illustration.slice(7)}.svg` : undefined; return <div key={key} className="cell cell-image" style={{ gridRow: `${r + 1} / span ${cell.height}`, gridColumn: `${c + 1} / span ${cell.width}` }} aria-label="Billedfelt">{src ? <img src={src} alt="" style={{ objectFit: cell.fit ?? "cover", objectPosition: `${cell.offsetX ?? 50}% ${cell.offsetY ?? 50}%` }} /> : <span aria-hidden="true">✦</span>}{(cell.placementIds ?? []).map(id => { const placement = puzzle.placements[id]; if (!placement.imageMarker) return null; return <button key={id} className={`image-cue-button${selection?.placementId === id ? " clue-active" : ""}`} style={{ left: `clamp(13px, ${placement.imageMarker.left}%, calc(100% - 13px))`, top: `clamp(13px, ${placement.imageMarker.top}%, calc(100% - 13px))` }} onClick={() => selectPlacement(placement)} aria-label={`${placement.direction === "across" ? "Vandret" : "Lodret"} svar, ${placement.length} bogstaver`}>{placement.imageMarker.arrow}</button>; })}</div>; }
               if (cell.kind === "clue") {
                 const display = cluePresentation({ row: r, col: c, width: cell.width, height: cell.height }, cell.placementIds.map(id => puzzle.placements[id]));
                 return <div key={key} className={`cell cell-clue ${cell.placementIds.length > 1 ? "clue-double" : ""} ${display.horizontal ? "clue-horizontal" : ""}`} style={{ gridRow: `${r + 1} / span ${cell.height}`, gridColumn: `${c + 1} / span ${cell.width}` }}>
                   {display.words.map(placement => {
-                    const arrowPosition = cell.width > 1 && placement.direction === "down" && (!display.horizontal || display.words.length === 1) && placement.col >= c && placement.col < c + cell.width
-                      ? { left: `${(placement.col - c + 0.5) * 100 / cell.width}%`, right: "auto", transform: "translateX(-50%)" }
-                      : cell.height > 1 && placement.direction === "across" && (display.horizontal || display.words.length === 1) && placement.row >= r && placement.row < r + cell.height
-                        ? { top: `${(placement.row - r + 0.5) * 100 / cell.height}%`, bottom: "auto", transform: "translateY(-50%)" }
-                        : undefined;
-                    return <button key={placement.id} className={selection?.placementId === placement.id ? "clue-active" : ""} onClick={() => selectPlacement(placement)} aria-label={`${placement.clue}, ${placement.direction === "across" ? "vandret" : "lodret"}, ${placement.length} bogstaver, starter i række ${placement.row + 1}, kolonne ${placement.col + 1}`}><span className="clue-text" style={{ fontSize: cell.placementIds.length > 1 ? `clamp(6px, min(calc(100cqi / ${Math.max(1, placement.clue.length)}), 40cqb), 14px)` : undefined }}>{placement.clue}</span><b aria-hidden="true" style={arrowPosition}>{placement.arrow}</b></button>;
+                    const other = display.words.find(word => word.id !== placement.id);
+                    const weight = other ? Math.max(35, Math.min(65, 100 * Math.sqrt(placement.clue.length || 1) / (Math.sqrt(placement.clue.length || 1) + Math.sqrt(other.clue.length || 1)))) : 1;
+                    return <button key={placement.id} style={{ flexGrow: weight }} className={selection?.placementId === placement.id ? "clue-active" : ""} onClick={() => selectPlacement(placement)} aria-label={`${placement.clue}, ${placement.direction === "across" ? "vandret" : "lodret"}, ${placement.length} bogstaver, starter i række ${placement.row + 1}, kolonne ${placement.col + 1}`}><ClueText clue={placement.clue} /></button>;
                   })}
                 </div>;
               }

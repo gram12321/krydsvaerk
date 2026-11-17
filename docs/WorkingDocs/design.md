@@ -4,7 +4,7 @@ Record approved product direction and user-facing decisions here. Keep proposals
 
 ## Product direction
 
-Krydsværk generates and plays Danish-style crosswords, with clues and direction arrows in the grid.
+Krydsværk generates and plays Danish-style crosswords, with clues in the grid. Direction arrows for clue answers appear in the designer workshop; preview and finished puzzles omit them.
 
 ## Confirmed decisions
 

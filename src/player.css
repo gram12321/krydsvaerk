@@ -26,7 +26,8 @@
   .player-page .image-cue-button{display:none!important}
 }
 
-.player-page .cell-clue.clue-double button{container-type:size}.player-page .cell-clue .clue-text{display:block;max-width:100%;max-height:100%;overflow:hidden;line-height:1.05;overflow-wrap:anywhere;text-align:center}
+.player-page .cell-clue button,.player-page .cell-clue.clue-double button{flex-basis:0;padding:2px 3px}
+.player-page .cell-clue .clue-text{display:block;flex:none;width:100%;font-size:8px;line-height:1.1;overflow-wrap:normal;word-break:normal;hyphens:auto;text-align:center}
 
 
 .player-page .fullscreen-grid-button{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #d5ded3;border-radius:3px;background:#fffefa;color:#355541;font-size:12px;font-weight:700}.player-page .fullscreen-grid-button svg,.player-page .fullscreen-grid-exit svg{width:16px;height:16px}.player-page .fullscreen-grid-button:hover,.player-page .fullscreen-grid-exit:hover{border-color:#9db39b;background:#f7faf4}.player-page .board-wrap:fullscreen{position:relative;display:grid;place-items:center;width:100vw;height:100vh;padding:8px;overflow:hidden;background:#e8e7dc;border:0;box-shadow:none}.player-page .board-wrap:fullscreen .board{width:min(calc(100vw - 16px),calc(100vh - 16px));height:min(calc(100vw - 16px),calc(100vh - 16px));max-width:none;margin:0;aspect-ratio:1}.player-page .fullscreen-grid-exit{position:absolute;z-index:2;top:12px;right:12px;display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #d5ded3;border-radius:3px;background:#fffefa;color:#355541;font-size:12px;font-weight:700}
