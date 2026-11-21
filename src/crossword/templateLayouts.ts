@@ -240,9 +240,7 @@ function reserveImagePocket(mask: string[][], size: number, width: number, heigh
     for (let col = 1; col + width < size - 1; col++) positions.push({ row, col });
   }
   for (const { row, col } of shuffle(positions)) {
-    // The extra row below and column to the right become ordinary clue cells
-    // for any runs that resume after the picture; the picture itself is visual.
-    for (let r = row; r <= row + height; r++) for (let c = col; c <= col + width; c++) mask[r][c] = "#";
+    for (let r = row; r < row + height; r++) for (let c = col; c < col + width; c++) mask[r][c] = "#";
     return { row, col, width, height };
   }
   return undefined;
@@ -334,7 +332,13 @@ function layoutFromDesignerMask(
 
   const imageId = imageArea ? `image-${imageArea.row}-${imageArea.col}` : undefined;
   const image: GridLayout["images"] = imageArea ? [{ ...imageArea, id: imageId!, illustration }] : [];
-  const active = new Set(words.map(word => word.clueId));
+  if (imageArea && imageId) for (const word of words) {
+    const clueIndex = Number(word.clueId);
+    const row = Math.floor(clueIndex / size), col = clueIndex % size;
+    if (row >= imageArea.row && row < imageArea.row + imageArea.height && col >= imageArea.col && col < imageArea.col + imageArea.width) word.clueId = imageId;
+  }
+  if (imageId && !words.some(word => word.clueId === imageId)) return null;
+  const active = new Set(words.map(word => word.clueId).filter(id => id !== imageId));
   const activePoints = new Set([...active].map(id => {
     const value = Number(id);
     return pointKey({ row: Math.floor(value / size), col: value % size });

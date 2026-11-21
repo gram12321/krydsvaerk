@@ -173,7 +173,8 @@ export function layoutIssues(layout: GridLayout): LayoutIssue[] {
   for (const clue of layout.clues) {
     const count = layout.words.filter(word => word.clueId === clue.id).length;
     const reserved = layout.words.some(word => word.textClueId === clue.id && layout.images.some(image => image.id === word.clueId));
-    if ((!count && !reserved) || count > 2) add(`Clue ${clue.id} must have one or two words`, Array.from({ length: clue.width * clue.height }, (_, i) => ({ row: clue.row + Math.floor(i / clue.width), col: clue.col + i % clue.width })));
+    const maxWords = clue.width === 1 && clue.height === 1 ? 2 : clue.width === 1 && clue.height === 2 || clue.width === 2 && clue.height === 1 ? 3 : 2;
+    if ((!count && !reserved) || count > maxWords) add(`Clue ${clue.id} must have one to ${maxWords} words`, Array.from({ length: clue.width * clue.height }, (_, i) => ({ row: clue.row + Math.floor(i / clue.width), col: clue.col + i % clue.width })));
   }
   for (const arrow of layout.arrows ?? []) {
     if (!layout.words.some(word => word.direction === arrow.direction && (word.breaks ?? []).some(b => {
@@ -202,5 +203,5 @@ export function solverLayout(layout: GridLayout): GridLayout {
 
 export function validateSolverLayout(layout: GridLayout): string[] {
   return validateLayout(solverLayout(layout)).filter(error =>
-    !error.startsWith("Empty cell at ") && !/^Clue .* must have one or two words$/.test(error) && !error.startsWith("Unused arrow at "));
+    !error.startsWith("Empty cell at ") && !/^Clue .* must have one to \d+ words$/.test(error) && !error.startsWith("Unused arrow at "));
 }

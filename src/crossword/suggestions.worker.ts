@@ -9,6 +9,12 @@ self.onmessage = (event: MessageEvent<{ layout: GridLayout; entries: DictionaryE
   if (!slot) return;
   const cells = wordCells(slot);
   const matching = entries.filter(entry => entryMatchesWordCue(layout, slot, entry) && answerLetters(entry.word).length === slot.length && isValidAnswerSpelling(entry.word) && fitsBreaks(slot, entry.word) && cells.every((cell, i) => !letters[`${cell.row},${cell.col}`] || letters[`${cell.row},${cell.col}`] === answerLetters(entry.word)[i]));
+  if (layout.images.some(image => image.id === slot.clueId) && cells.every(cell => Boolean(letters[`${cell.row},${cell.col}`]))) {
+    const word = cells.reduce((value, cell, index) => `${value}${slot.breaks?.includes(index) ? "-" : ""}${letters[`${cell.row},${cell.col}`]}`, "");
+    if (isValidAnswerSpelling(word) && fitsBreaks(slot, word) && !matching.some(entry => entry.word === word)) {
+      matching.push({ word, clue: "Billedsvar", length: word.length, source: "custom" });
+    }
+  }
   const scores = indexWordScores(entries);
   const knownByWord = new Map<string, Record<string, DictionaryEntry>[]>();
   for (const answers of knownSolutions) {

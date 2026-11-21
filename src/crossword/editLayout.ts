@@ -101,6 +101,30 @@ export function sameSlot(a: GridWord, b: GridWord): boolean {
   return a.direction === b.direction && a.clueId === b.clueId && JSON.stringify(wordCells(a)) === JSON.stringify(wordCells(b));
 }
 
+/** Merge every intersecting image into the bounding rectangle of a new selection. */
+export function mergeImageArea(layout: GridLayout, point: Point, width: number, height: number, illustration?: string): GridLayout | null {
+  let top = point.row, left = point.col, bottom = top + height, right = left + width;
+  const merged: GridLayout["images"] = [];
+  let found: boolean;
+  do {
+    found = false;
+    for (const image of layout.images) {
+      if (merged.includes(image) || top >= image.row + image.height || bottom <= image.row || left >= image.col + image.width || right <= image.col) continue;
+      merged.push(image);
+      top = Math.min(top, image.row); left = Math.min(left, image.col);
+      bottom = Math.max(bottom, image.row + image.height); right = Math.max(right, image.col + image.width);
+      found = true;
+    }
+  } while (found);
+  const generatedId = `image-${top}-${left}`;
+  const ids = new Set(merged.map(image => image.id));
+  const base = { ...layout, images: layout.images.filter(image => !ids.has(image.id)), words: layout.words.map(word => ids.has(word.clueId) ? { ...word, clueId: generatedId } : word) };
+  const next = editLayout(base, { row: top, col: left }, "image-area", { width: right - left, height: bottom - top });
+  if (!next) return null;
+  const original = merged[0];
+  return { ...next, images: next.images.map(image => image.id === generatedId ? { ...image, ...(original ? { illustration: original.illustration, fit: original.fit, offsetX: original.offsetX, offsetY: original.offsetY } : { illustration }) } : image) };
+}
+
 /** Resize from the existing top-left corner, leaving released cells as blocks. */
 export function resizeImageArea(layout: GridLayout, imageId: string, width: number, height: number): GridLayout | null {
   const image = layout.images.find(item => item.id === imageId);

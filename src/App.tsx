@@ -5,11 +5,11 @@ import { exportDictionary, parseDictionaryFile } from "./crossword/dictionaryFil
 import { BUILTIN_DICTIONARY_COLLECTIONS, countDictionaryWords } from "./crossword/dictionary";
 import { customEntryKey, parseCustomEntries, parseCustomDictionaries, type CustomDictionary } from "./crossword/customDictionary";
 import { loadPersistedData, publishPublicCrossword, savePersistedValue, setSharedDictionary, STORAGE_KEYS, type PersistedData, type PublicCrossword, type SharedDictionary } from "./lib/persistence";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { dictionary, indexWordScores, parseBuiltinDictionarySettings, type BuiltinDictionarySettings, type DictionaryEntry } from "./crossword/dictionary";
 import { BuiltinDictionaryOptions } from "./crossword/BuiltinDictionaryOptions";
 import { answerLetters, cluePresentation, fitsBreaks, imageCueTargets, layoutIssues, solverLayout, validateSolverLayout, wordCells, type GridLayout, type GridWord } from "./crossword/layout";
-import { editLayout, resizeImageArea, sameSlot, type LayoutTool } from "./crossword/editLayout";
+import { editLayout, mergeImageArea, resizeImageArea, sameSlot, type LayoutTool } from "./crossword/editLayout";
 import { puzzleFromLayout, type Puzzle } from "./crossword/generator";
 import { Player } from "./Player";
 import "./player.css";
@@ -80,7 +80,8 @@ function describeLayoutError(error: string, layout: GridLayout): string {
     const location = `Ledetrådsfeltet i række ${clue.row + 1}, kolonne ${clue.col + 1}`;
     if (words.length > 2) {
       const starts = words.map(word => `${word.direction === "across" ? "vandret" : "lodret"} fra række ${word.start.row + 1}, kolonne ${word.start.col + 1}`).join("; ");
-      return `${location} peger automatisk på ${words.length} ord (${starts}). Et ledetrådsfelt kan højst pege på to ord; ændr de tilstødende felter, så højst to ord starter ved feltet.`;
+      const maxWords = clue.width === 1 && clue.height === 1 ? 2 : clue.width === 1 && clue.height === 2 || clue.width === 2 && clue.height === 1 ? 3 : 2;
+      return `${location} peger automatisk på ${words.length} ord (${starts}). Dette ledetrådsfelt kan højst pege på ${maxWords} ord; ændr de tilstødende felter.`;
     }
     return `${location} skal pege på mindst ét ord, der starter lige til højre for eller under feltet.`;
   }
@@ -240,6 +241,29 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
   const [showGridCounts, setShowGridCounts] = useState(false);
   const [progress, setProgress] = useState({ checked: 0, total: 0, uncertain: 0, done: false });
   const [clues, setClues] = useState<Record<string, string>>({});
+  const editorUndo = useRef<{ layout: GridLayout; letters: Record<string, string>; clues: Record<string, string> }[]>([]);
+  const editorRedo = useRef<{ layout: GridLayout; letters: Record<string, string>; clues: Record<string, string> }[]>([]);
+  const [, setEditorHistoryVersion] = useState(0);
+  function rememberEditorStep() {
+    editorUndo.current.push({ layout, letters: { ...letters }, clues: { ...clues } });
+    if (editorUndo.current.length > 100) editorUndo.current.shift();
+    editorRedo.current = [];
+    setEditorHistoryVersion(version => version + 1);
+  }
+  function undoEditorStep() {
+    const previous = editorUndo.current.pop();
+    if (!previous) return;
+    editorRedo.current.push({ layout, letters: { ...letters }, clues: { ...clues } });
+    setLayout(previous.layout); setLetters(previous.letters); setClues(previous.clues);
+    setPublishMessage(""); setEditorHistoryVersion(version => version + 1);
+  }
+  function redoEditorStep() {
+    const next = editorRedo.current.pop();
+    if (!next) return;
+    editorUndo.current.push({ layout, letters: { ...letters }, clues: { ...clues } });
+    setLayout(next.layout); setLetters(next.letters); setClues(next.clues);
+    setPublishMessage(""); setEditorHistoryVersion(version => version + 1);
+  }
   const [editingClueId, setEditingClueId] = useState<string | null>(null);
   const [inlineClueId, setInlineClueId] = useState<string | null>(null);
   const [publishMessage, setPublishMessage] = useState("");
@@ -477,6 +501,18 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     setLetters({}); setClues({}); setPublishMessage(""); setAutofillProgress(null); setTool("clue");
     setLayoutMessage("Tomt felt oprettet. Placér en ledetråd for at begynde.");
   }
+  function expandLayout(axis: "row" | "column") {
+    if ((axis === "row" ? layout.height : layout.width) >= 20) return;
+    if (autofillWorker.current) cancelAutofill();
+    generationWorker.current?.terminate(); generationWorker.current = null;
+    setLayout(current => ({
+      ...current,
+      width: current.width + (axis === "column" ? 1 : 0),
+      height: current.height + (axis === "row" ? 1 : 0),
+    }));
+    setPublishMessage("");
+    setLayoutMessage(axis === "row" ? "En tom række er tilføjet nederst." : "En tom kolonne er tilføjet til højre.");
+  }
   function newLayout() {
     generationWorker.current?.terminate();
     const worker = new Worker(new URL("./crossword/designerGeneration.worker.ts", import.meta.url), { type: "module" });
@@ -541,6 +577,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     const wordId = target.id;
     const current = layout.words.find(word => word.id === wordId);
     if (!current) {
+      rememberEditorStep();
       setLayout({ ...layout, words: [...layout.words, { ...target, clueId: cueId, textClueId: target.clueId }] });
       setPublishMessage("");
       return;
@@ -552,10 +589,12 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       clueId: cueId,
       ...(toImage ? { textClueId: word.textClueId ?? word.clueId } : { textClueId: undefined }),
     }) };
+    rememberEditorStep();
     setLayout(next);
     setPublishMessage("");
   }
   function updateLetters(next: Record<string, string>, choice?: { id: string; clue: string }) {
+    if (JSON.stringify(letters) !== JSON.stringify(next) || choice) rememberEditorStep();
     const changed = new Set([...Object.keys(letters), ...Object.keys(next)].filter(key => letters[key] !== next[key]));
     const affected = new Set(layout.words.filter(word => wordCells(word).some(cell => changed.has(keyOf(cell.row, cell.col)))).map(word => word.id));
     setLetters(next);
@@ -586,6 +625,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       const nextEmoji = nextCue?.emojiAny ? `any:${nextCue.emojiDirection ?? "both"}` : nextCue?.emoji;
       return old && sameSlot(old, word) && oldEmoji === nextEmoji;
     }).map(word => word.id));
+    rememberEditorStep();
     setClues(current => Object.fromEntries(Object.entries(current).filter(([id]) => surviving.has(id))));
     setLetters(current => Object.fromEntries(Object.entries(current).filter(([key]) => {
       const [r, c] = key.split(",").map(Number);
@@ -610,9 +650,9 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     const col = Math.min(selection.start.col, selection.end.col);
     const width = Math.abs(selection.end.col - selection.start.col) + 1;
     const height = Math.abs(selection.end.row - selection.start.row) + 1;
-    const next = editLayout(layout, { row, col }, "image-area", { width, height });
+    const next = mergeImageArea(layout, { row, col }, width, height, illustration);
     if (!next) return;
-    next.images = next.images.map(area => area.row === row && area.col === col && area.width === width && area.height === height ? { ...area, illustration } : area);
+    rememberEditorStep();
     const surviving = new Set(next.words.filter(word => {
       const old = layout.words.find(item => item.id === word.id);
       return old && sameSlot(old, word);
@@ -628,7 +668,8 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     setLayout(next);
     setSelectedId(current => next.words.some(word => word.id === current) ? current : next.words[0]?.id);
     setPublishMessage("");
-    setLayoutMessage(`Billedområde på ${width} × ${height} felter er markeret.`);
+    const resultArea = next.images.find(area => row >= area.row && row < area.row + area.height && col >= area.col && col < area.col + area.width);
+    setLayoutMessage(`Billedområde på ${resultArea?.width ?? width} × ${resultArea?.height ?? height} felter er markeret.`);
     setTool("write");
   }
   function startImageArea(row: number, col: number) {
@@ -652,8 +693,31 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     setImageDrag(null);
     if (selection) applyImageArea(selection);
   }
+  function startSelectedImagePan(event: ReactPointerEvent<HTMLButtonElement>, row: number, col: number, image: GridLayout["images"][number], src?: string) {
+    if (!src || image.id !== selectedImageId) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const img = event.currentTarget.querySelector("img");
+    if (!img || !img.naturalWidth || !img.naturalHeight) return;
+    const scale = (image.fit ?? "cover") === "contain" ? Math.min(rect.width / img.naturalWidth, rect.height / img.naturalHeight) : Math.max(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+    imagePanRef.current = { row, col, x: event.clientX, y: event.clientY, offsetX: image.offsetX ?? 50, offsetY: image.offsetY ?? 50, availableX: rect.width - img.naturalWidth * scale, availableY: rect.height - img.naturalHeight * scale };
+  }
+  function moveSelectedImagePan(event: ReactPointerEvent<HTMLButtonElement>, row: number, col: number) {
+    if (imageDragRef.current) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      extendImageArea(row + Math.max(0, Math.min(Math.ceil(rect.height / 48) - 1, Math.floor((event.clientY - rect.top) / 48))), col + Math.max(0, Math.min(Math.ceil(rect.width / 48) - 1, Math.floor((event.clientX - rect.left) / 48))));
+      return;
+    }
+    const pan = imagePanRef.current;
+    if (!pan || pan.row !== row || pan.col !== col) return;
+    const offsetX = Math.max(0, Math.min(100, pan.offsetX + (Math.abs(pan.availableX) > 0.5 ? (event.clientX - pan.x) / pan.availableX * 100 : 0)));
+    const offsetY = Math.max(0, Math.min(100, pan.offsetY + (Math.abs(pan.availableY) > 0.5 ? (event.clientY - pan.y) / pan.availableY * 100 : 0)));
+    setLayout(current => ({ ...current, images: current.images.map(area => area.row === row && area.col === col ? { ...area, offsetX, offsetY } : area) }));
+    setPublishMessage("");
+  }
   function updateSelectedImage(changes: Partial<Pick<NonNullable<typeof selectedImage>, "fit" | "offsetX" | "offsetY" | "illustration">>) {
     if (!selectedImage) return;
+    rememberEditorStep();
     setLayout(current => ({ ...current, images: current.images.map(image => image.id === selectedImage.id ? { ...image, ...changes } : image) }));
     setPublishMessage("");
   }
@@ -661,6 +725,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     if (!selectedImage) return;
     const next = resizeImageArea(layout, selectedImage.id, width, height);
     if (!next) { setLayoutMessage("Billedområdet kan ikke ændres til den størrelse eller overlappe et andet billede."); return; }
+    rememberEditorStep();
     const surviving = new Set(next.words.filter(word => { const old = layout.words.find(item => item.id === word.id); return old && sameSlot(old, word); }).map(word => word.id));
     setClues(current => Object.fromEntries(Object.entries(current).filter(([id]) => surviving.has(id))));
     setLetters(current => Object.fromEntries(Object.entries(current).filter(([cellKey]) => {
@@ -781,6 +846,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
     <nav className="designer-tabs" aria-label="Designerens værktøjer"><button type="button" aria-current={designerTab === "workshop" ? "page" : undefined} onClick={() => setDesignerTab("workshop")}>Krydsord</button><button type="button" aria-current={designerTab === "dictionaries" ? "page" : undefined} onClick={() => setDesignerTab("dictionaries")}>Ordbøger <span>{dictionaries.length}</span></button></nav>
           {designerTab === "workshop" && <section className="designer-control-bar" aria-label="Indstillinger for krydsord">
         <div className="designer-control-group grid-setup"><PanelHeading number="01" label="GITTER" title="Opret et felt" level={3} /><div className="designer-control-row"><label htmlFor="size">Feltets størrelse</label><select id="size" value={size} onChange={event => setSize(Number(event.target.value))}><option value={9}>9 × 9</option><option value={11}>11 × 11</option><option value={13}>13 × 13</option></select><button type="button" className="secondary-action" onClick={newLayout}>Generér nyt felt</button><button type="button" className="secondary-action" onClick={emptyLayout}>Start med tomt felt</button></div>
+          <div className="designer-control-row"><button type="button" className="secondary-action" disabled={layout.height >= 20} onClick={() => expandLayout("row")}>Tilføj række nederst</button><button type="button" className="secondary-action" disabled={layout.width >= 20} onClick={() => expandLayout("column")}>Tilføj kolonne til højre</button><span className="grid-dimensions">Aktuelt felt: {layout.width} × {layout.height}</span></div>
           <details className="generator-settings"><summary>Indstillinger</summary><div className="designer-generator-options">
             <label><input type="checkbox" checked={includeHyphenatedWords} onChange={event => setIncludeHyphenatedWords(event.target.checked)} /> Brug ord med bindestreg, hvis muligt</label>
             <div className="generator-word-count"><label htmlFor="forced-hyphen-count">Antal svar med bindestreg</label><select id="forced-hyphen-count" value={forcedHyphenatedWordCount} disabled={!includeHyphenatedWords} onChange={event => setForcedHyphenatedWordCount(Number(event.target.value))}><option value={0}>Automatisk</option>{[1, 2, 3, 4].map(count => <option key={count} value={count}>{count}</option>)}</select></div>
@@ -800,7 +866,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
         {[{ label: "Udfyld", items: tools.slice(0, 3) }, { label: "Felter", items: tools.slice(3, 10) }, { label: "Bindestreger", items: tools.slice(10) }].map(group => <div className="board-tool-group" key={group.label}><div className="layout-tool-buttons" role="group" aria-label={group.label}>{group.items.map(item => <button key={item.id} type="button" aria-label={item.label} data-tooltip={item.label} aria-pressed={tool === item.id} onClick={() => setTool(item.id)}>{item.id === "emoji" ? <span className="board-tool-emoji" aria-hidden="true">😀</span> : <ToolIcon id={item.id} />}</button>)}</div></div>)}
         <div className="direction-control" role="group" aria-label="Ordretning"><button type="button" data-tooltip="Vandret" aria-label="Vandret" aria-pressed={direction === "across"} onClick={() => chooseDirection("across")}>→</button><button type="button" data-tooltip="Lodret" aria-label="Lodret" aria-pressed={direction === "down"} onClick={() => chooseDirection("down")}>↓</button></div>
       </div>
-      <div className="board-toolbar-footer"><span className="tool-name">{tools.find(item => item.id === tool)?.label}</span><div className="board-action-buttons" role="group" aria-label="Gitterfunktioner"><button type="button" data-tooltip="Kontrollér udfyldning" onClick={() => startAutofill(undefined, true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg><span>Kontrollér</span></button><button type="button" data-tooltip="Fyld gitteret" onClick={() => startAutofill()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 12l3 3 5-6" /></svg><span>Fyld gitter</span></button><button type="button" data-tooltip="Ryd alle bogstaver" onClick={() => updateLetters({})}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg><span>Ryd bogstaver</span></button></div></div>
+      <div className="board-toolbar-footer"><span className="tool-name">{tools.find(item => item.id === tool)?.label}</span><div className="board-action-buttons" role="group" aria-label="Gitterfunktioner"><button type="button" aria-label="Fortryd" data-tooltip="Fortryd" disabled={!editorUndo.current.length} onClick={undoEditorStep}><span>↶ Fortryd</span></button><button type="button" aria-label="Gentag" data-tooltip="Gentag" disabled={!editorRedo.current.length} onClick={redoEditorStep}><span>↷ Gentag</span></button><button type="button" data-tooltip="Kontrollér udfyldning" onClick={() => startAutofill(undefined, true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg><span>Kontrollér</span></button><button type="button" data-tooltip="Fyld gitteret" onClick={() => startAutofill()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 12l3 3 5-6" /></svg><span>Fyld gitter</span></button><button type="button" data-tooltip="Ryd alle bogstaver" onClick={() => updateLetters({})}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg><span>Ryd bogstaver</span></button></div></div>
     {editingClueId && <div className="clue-edit-tool" role="group" aria-label="Rediger ledetråd"><label>Ledetråd<input autoFocus aria-label="Tekstledetråd til valgt ord" value={clues[editingClueId] ?? ""} onChange={event => setClues(current => ({ ...current, [editingClueId]: event.target.value }))} onKeyDown={event => { if (event.key === "Enter" || event.key === "Escape") setEditingClueId(null); }} placeholder="Brug ordbogens ledetråd" /></label><button type="button" onClick={() => setEditingClueId(null)}>Færdig</button></div>}
     </div>
     {tool === "image-area" && <div className="image-choices"><label>Fyld billedområdet med<select aria-label="Vælg illustration" value={(selectedImage?.illustration ?? illustration).startsWith("data:") ? "upload" : (selectedImage?.illustration ?? illustration)} onChange={event => { if (event.target.value !== "upload") { setIllustration(event.target.value); updateSelectedImage({ illustration: event.target.value }); } }}><option value="preset:landscape">Landskab</option><option value="preset:flower">Blomst</option><option value="preset:house">Hus</option><option value="upload">Upload eget billede</option></select></label><input aria-label="Upload billede" type="file" accept="image/*" onChange={event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { if (typeof reader.result === "string") { setIllustration(reader.result); updateSelectedImage({ illustration: reader.result }); } }; reader.readAsDataURL(file); }} /></div>}
@@ -832,7 +898,7 @@ function Designer({ onPublish, onPreview, dictionaries, onDictionariesChange, sh
       if (tool === "image-area" && imageArea) {
         if (imageArea.row !== row || imageArea.col !== col) return null;
         const src = imageArea.illustration?.startsWith("data:") ? imageArea.illustration : imageArea.illustration?.startsWith("preset:") ? `/illustrations/${imageArea.illustration.slice(7)}.svg` : undefined;
-        return <button key={key} type="button" className={`edit-image-area${imageArea.id === selectedImageId ? " selected" : ""}`} style={{ gridRow: `${row + 1} / span ${imageArea.height}`, gridColumn: `${col + 1} / span ${imageArea.width}` }} aria-label={`Rediger række ${row + 1}, kolonne ${col + 1}`} aria-pressed={imageArea.id === selectedImageId} onClick={() => setSelectedImageId(imageArea.id)}>{src ? <img src={src} alt="" draggable={false} style={{ objectFit: imageArea.fit ?? "cover", objectPosition: `${imageArea.offsetX ?? 50}% ${imageArea.offsetY ?? 50}%` }} /> : "✦"}</button>;
+        return <button key={key} type="button" className={`edit-image-area${imageArea.id === selectedImageId ? " selected" : ""}`} style={{ gridRow: `${row + 1} / span ${imageArea.height}`, gridColumn: `${col + 1} / span ${imageArea.width}` }} aria-label={`Rediger række ${row + 1}, kolonne ${col + 1}`} aria-pressed={imageArea.id === selectedImageId} onPointerDown={event => startSelectedImagePan(event, row, col, imageArea, src)} onPointerMove={event => moveSelectedImagePan(event, row, col)} onPointerUp={() => { imagePanRef.current = null; setSelectedImageId(imageArea.id); }} onPointerCancel={() => { imagePanRef.current = null; }} onClick={() => setSelectedImageId(imageArea.id)}>{src ? <img src={src} alt="" draggable={false} style={{ objectFit: imageArea.fit ?? "cover", objectPosition: `${imageArea.offsetX ?? 50}% ${imageArea.offsetY ?? 50}%` }} /> : "✦"}</button>;
       }
       if (tool !== "write" && tool !== "autofill" && tool !== "edit-clue") {
         const clueWords = clue ? layout.words.filter(word => word.clueId === clue.id) : [];

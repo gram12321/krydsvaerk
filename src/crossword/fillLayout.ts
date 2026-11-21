@@ -59,6 +59,18 @@ export function fillLayout(layout: GridLayout, dictionary: readonly DictionaryEn
   if (errors.length) return { status: "invalid", errors };
   const partial = validateLayout(layout).length > 0;
   layout = solverLayout(layout);
+  // A designer may supply an image cue answer that is not in any enabled
+  // dictionary. Once every cell has a letter, keep that spelling as a fixed
+  // solver candidate so crossings can still be solved around it.
+  const suppliedImageAnswers = layout.words.flatMap(word => {
+    if (!layout.images.some(image => image.id === word.clueId)) return [];
+    const cells = wordCells(word);
+    const letters = cells.map(cell => fixedLetters[`${cell.row},${cell.col}`] ?? "");
+    if (letters.some(letter => !letter) || letters.some(letter => !ALPHABET.includes(letter))) return [];
+    const answer = letters.reduce((value, letter, index) => `${value}${word.breaks?.includes(index) ? "-" : ""}${letter}`, "");
+    return [{ word: answer, clue: "Billedsvar", length: answer.length, source: "custom" as const }];
+  });
+  if (suppliedImageAnswers.length) dictionary = [...dictionary, ...suppliedImageAnswers];
   const usableCache = cache?.dictionary === dictionary ? cache : undefined;
   const index = usableCache?.index ?? makeIndex(dictionary, new Set(layout.words.map(word => word.length)));
   const indexes = layout.words.map(word => index.get(word.length));
